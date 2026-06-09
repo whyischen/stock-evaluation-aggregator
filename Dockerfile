@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY sea_core ./sea_core
+COPY sea_api ./sea_api
+COPY plugins ./plugins
+COPY web ./web
+
+RUN pip install --no-cache-dir .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "sea_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+

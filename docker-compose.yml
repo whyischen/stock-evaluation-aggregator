@@ -1,0 +1,41 @@
+services:
+  sea-core:
+    build:
+      context: .
+    image: sea-core:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      SEA_TRADINGAGENTS_CN_URL: http://tradingagents-cn-svc:8080
+      SEA_TRADINGAGENTS_URL: http://tradingagents-svc:8080
+      SEA_ENABLE_MOCK_PLUGINS: ${SEA_ENABLE_MOCK_PLUGINS:-true}
+    depends_on:
+      - tradingagents-cn-svc
+      - tradingagents-svc
+
+  tradingagents-cn-svc:
+    build:
+      context: .
+    image: sea-plugin-tradingagents-cn:local
+    command: ["uvicorn", "plugins.service:app", "--host", "0.0.0.0", "--port", "8080"]
+    env_file:
+      - .env
+    environment:
+      SEA_PLUGIN_SERVICE_ID: tradingagents_cn
+      SEA_ENABLE_LIVE_TRADINGAGENTS: ${SEA_ENABLE_LIVE_TRADINGAGENTS:-false}
+      SEA_TRADINGAGENTS_CN_TIMEOUT_SECONDS: ${SEA_TRADINGAGENTS_CN_TIMEOUT_SECONDS:-300}
+
+  tradingagents-svc:
+    build:
+      context: .
+    image: sea-plugin-tradingagents:local
+    command: ["uvicorn", "plugins.service:app", "--host", "0.0.0.0", "--port", "8080"]
+    env_file:
+      - .env
+    environment:
+      SEA_PLUGIN_SERVICE_ID: tradingagents
+      SEA_ENABLE_LIVE_TRADINGAGENTS: ${SEA_ENABLE_LIVE_TRADINGAGENTS:-false}
+      SEA_TRADINGAGENTS_TIMEOUT_SECONDS: ${SEA_TRADINGAGENTS_TIMEOUT_SECONDS:-300}
+

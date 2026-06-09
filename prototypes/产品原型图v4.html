@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEA v4 — Stock Evaluation Aggregator</title>
+<style>
+/* ============================================================
+   SEA v4 — Design System
+   ============================================================ */
+:root {
+  --bg-root: #07090f;
+  --bg-sidebar: #0b0e17;
+  --bg-surface: #0f121d;
+  --bg-elevated: #151924;
+  --bg-hover: #1a1f2e;
+  --bg-input: #0a0d15;
+  --border-subtle: #1a1f2e;
+  --border-default: #222840;
+  --border-active: #2e3654;
+
+  --text-primary: #e4e8f1;
+  --text-secondary: #919bb5;
+  --text-muted: #586388;
+  --text-inverse: #07090f;
+
+  --accent-green: #22c55e;
+  --accent-green-bg: #0f2e1a;
+  --accent-amber: #f59e0b;
+  --accent-amber-bg: #2e200a;
+  --accent-red: #ef4444;
+  --accent-red-bg: #2e1010;
+  --accent-blue: #3b82f6;
+  --accent-blue-bg: #0f1f3d;
+  --accent-purple: #8b5cf6;
+  --accent-cyan: #06b6d4;
+
+  --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sans: 'PingFang SC', 'Heiti SC', 'Microsoft YaHei', -apple-system, sans-serif;
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+
+  --transition-fast: 0.12s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.35s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-root);
+  color: var(--text-primary);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   Sidebar (264px, v3-inspired design)
+   ============================================================ */
+.sidebar {
+  width: 248px; min-width: 248px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; overflow-y: auto;
+  z-index: 10; user-select: none;
+}
+
+/* Brand */
+.sidebar .brand {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar .brand-name {
+  font-size: 1.05rem; font-weight: 700; letter-spacing: -0.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sidebar .brand-dot {
+  width: 8px; height: 8px; border-radius: 2px;
+  background: var(--accent-blue); box-shadow: 0 0 8px var(--accent-blue);
+  flex-shrink: 0;
+}
+.sidebar .brand-sub {
+  font-size: 0.62rem; color: var(--text-muted); font-weight: 400; margin-top: 3px;
+}
+
+/* Sidebar sections */
+.sidebar-section {
+  padding: 14px 14px 6px;
+}
+.sidebar-label {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-muted); margin-bottom: 8px;
+  padding-bottom: 5px; border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Nav / Plugin rows */
+.sidebar-row {
+  display: flex; align-items: center; padding: 9px 12px;
+  margin: 1px 8px; border-radius: 6px; cursor: pointer;
+  transition: all 0.15s; border: 1px solid transparent; font-size: 0.8rem;
+  gap: 10px;
+}
+.sidebar-row:hover { background: var(--bg-hover); }
+.sidebar-row.active {
+  background: var(--bg-hover); border-color: var(--border-active);
+}
+.sidebar-row.disabled { opacity: 0.45; cursor: default; }
+.sidebar-row.disabled:hover { background: transparent; }
+
+.sidebar-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border-default);
+  transition: all 0.2s;
+}
+.sidebar-row.active .sidebar-dot {
+  background: var(--accent-green); box-shadow: 0 0 6px rgba(34,197,94,0.5);
+}
+.sidebar-row.warning .sidebar-dot {
+  background: var(--accent-amber); box-shadow: 0 0 6px rgba(245,158,11,0.5);
+}
+.sidebar-row.busy .sidebar-dot {
+  background: var(--accent-blue); animation: pulse-dot 1.2s infinite;
+}
+.sidebar-row .row-label { flex: 1; font-size: 0.78rem; }
+.sidebar-row .row-tag {
+  font-size: 0.6rem; padding: 2px 6px; border-radius: 3px;
+  background: var(--bg-elevated); color: var(--text-muted); flex-shrink: 0;
+  font-weight: 500;
+}
+.sidebar-row.active .row-tag { color: var(--accent-green); background: rgba(34,197,94,0.12); }
+.sidebar-row.warning .row-tag { color: var(--accent-amber); background: rgba(245,158,11,0.12); }
+.sidebar-row.busy .row-tag { color: var(--accent-blue); background: rgba(59,130,246,0.12); }
+.sidebar-row.disabled .row-tag { color: var(--text-muted); background: var(--bg-elevated); }
+
+/* Nav rows: active = blue left accent instead of green dot */
+.sidebar-row.nav-row.active {
+  border-left: 2px solid var(--accent-blue);
+  border-radius: 0 6px 6px 0;
+  padding-left: 10px;
+}
+.sidebar-row.nav-row.active .sidebar-dot {
+  background: var(--accent-blue); box-shadow: 0 0 6px rgba(59,130,246,0.5);
+}
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Factor list (compact, sidebar-bottom) */
+.sidebar-factor-list {
+  padding: 0 12px; font-size: 0.66rem; color: var(--text-muted); line-height: 2.1;
+}
+
+/* Sidebar spacer */
+.sidebar-spacer { flex: 1; min-height: 8px; }
+
+/* ============================================================
+   Main Content Area
+   ============================================================ */
+.main-area {
+  flex: 1; display: flex; flex-direction: column;
+  min-width: 0; overflow: hidden;
+}
+
+/* ============================================================
+   View Container
+   ============================================================ */
+.view {
+  display: none;
+  flex: 1; flex-direction: column;
+  overflow: hidden;
+}
+.view.active { display: flex; }
+
+/* ============================================================
+   View Header
+   ============================================================ */
+.view-header {
+  padding: 18px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.view-title {
+  font-size: 0.95rem; font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.view-actions { display: flex; gap: 8px; }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  font-size: 0.72rem; font-family: inherit;
+  cursor: pointer; border: 1px solid var(--border-default);
+  background: var(--bg-surface); color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:hover { background: var(--bg-hover); border-color: var(--border-active); color: var(--text-primary); }
+.btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.btn.primary:hover { background: #2563eb; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn.ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn.danger { background: transparent; border-color: transparent; color: var(--accent-red); }
+.btn.danger:hover { background: var(--accent-red-bg); }
+
+/* ============================================================
+   Card
+   ============================================================ */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.78rem; font-weight: 600;
+}
+.card-body { padding: 16px; }
+.card-body.no-padding { padding: 0; }
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+/* ============================================================
+   VIEW 1: Evaluate
+   ============================================================ */
+.eval-layout {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 14px 24px 20px; gap: 14px; overflow: hidden;
+}
+
+/* Search */
+.search-wrap {
+  position: relative;
+}
+.search-input {
+  width: 100%; padding: 11px 14px 11px 36px;
+  background: var(--bg-input); border: 1px solid var(--border-default);
+  border-radius: var(--radius); color: var(--text-primary);
+  font-size: 0.88rem; font-family: var(--font-mono); outline: none;
+  transition: border-color var(--transition-fast);
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--border-active); }
+.search-icon {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted); font-size: 0.85rem; pointer-events: none;
+}
+
+/* Watchlist Table */
+.watchlist-wrap {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.watchlist-header {
+  padding: 10px 16px;
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: 8px;
+}
+.watchlist-header .count { color: var(--text-secondary); font-weight: 600; }
+
+.stock-row {
+  display: flex; align-items: center;
+  padding: 11px 16px; border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer; transition: background var(--transition-fast);
+  gap: 12px;
+}
+.stock-row:last-child { border-bottom: none; }
+.stock-row:hover { background: var(--bg-hover); }
+.stock-row.selected { background: var(--accent-blue-bg); border-left: 2px solid var(--accent-blue); }
+.stock-row .s-code {
+  font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600;
+  min-width: 100px;
+}
+.stock-row .s-name {
+  font-size: 0.8rem; color: var(--text-secondary); flex: 1;
+}
+.stock-row .s-market {
+  font-size: 0.62rem; padding: 2px 7px; border-radius: 10px;
+  background: var(--bg-hover); color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Signal dot */
+.signal-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.signal-dot.fresh { background: var(--accent-green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.signal-dot.stale { background: var(--accent-amber); box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+.signal-dot.researching { background: var(--accent-blue); animation: pulse-dot 1.2s infinite; }
+.signal-dot.empty { background: var(--text-muted); }
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.stock-row .s-score {
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700;
+  min-width: 56px; text-align: right;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+}
+.s-score.positive { color: var(--accent-green); background: var(--accent-green-bg); }
+.s-score.negative { color: var(--accent-red); background: var(--accent-red-bg); }
+.s-score.neutral { color: var(--accent-amber); background: var(--accent-amber-bg); }
+
+.stock-row .s-arrow {
+  color: var(--text-muted); font-size: 0.7rem; transition: transform var(--transition-fast);
+}
+.stock-row.selected .s-arrow { transform: rotate(90deg); color: var(--accent-blue); }
+
+/* Recent evaluations */
+.recent-label {
+  font-size: 0.68rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 0 2px;
+}
+.recent-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 0.78rem;
+  transition: background var(--transition-fast);
+}
+.recent-row:hover { background: var(--bg-hover); }
+.recent-row .re-code {
+  font-family: var(--font-mono); font-weight: 600; min-width: 90px;
+}
+.recent-row .re-time { color: var(--text-muted); font-size: 0.68rem; min-width: 42px; }
+.recent-row .re-dir { font-size: 0.72rem; color: var(--text-secondary); }
+.recent-row .re-score {
+  font-family: var(--font-mono); font-weight: 700; font-size: 0.78rem;
+}
+
+/* Results panel */
+.results-panel {
+  display: none; flex-shrink: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+  animation: slideUp 0.25s ease;
+}
+.results-panel.open { display: block; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.results-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.results-ticker { font-weight: 700; font-size: 0.9rem; }
+.results-ticker span { color: var(--text-muted); font-weight: 400; font-size: 0.78rem; }
+
+.agg-badge {
+  display: flex; align-items: center; gap: 10px;
+}
+.agg-score-circle {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2.5px solid var(--border-default);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.agg-meta { font-size: 0.75rem; line-height: 1.4; }
+.agg-meta .consensus { font-weight: 600; }
+
+.plugin-result {
+  padding: 14px 18px; border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.plugin-result:last-of-type { border-bottom: none; }
+.pr-source {
+  min-width: 135px; font-size: 0.78rem; font-weight: 600;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.pr-badge {
+  font-size: 0.58rem; padding: 2px 6px; border-radius: 3px;
+  background: var(--bg-hover); font-weight: 500;
+}
+.pr-verdict {
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  font-size: 0.73rem; font-weight: 700; font-family: var(--font-mono);
+  flex-shrink: 0; min-width: 50px; text-align: center;
+}
+.pr-verdict.buy  { background: var(--accent-green-bg); color: var(--accent-green); }
+.pr-verdict.sell { background: var(--accent-red-bg); color: var(--accent-red); }
+.pr-verdict.hold { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.pr-verdict.none { background: var(--bg-hover); color: var(--text-muted); }
+
+.pr-conf { flex-shrink: 0; min-width: 100px; }
+.pr-conf-label { display: flex; justify-content: space-between; font-size: 0.64rem; color: var(--text-muted); margin-bottom: 3px; }
+.pr-conf-bar { height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
+.pr-conf-fill { height: 100%; border-radius: 2px; }
+.pr-conf-fill.buy  { background: var(--accent-green); }
+.pr-conf-fill.sell { background: var(--accent-red); }
+.pr-conf-fill.hold { background: var(--accent-amber); }
+
+.pr-time {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  color: var(--text-muted); flex-shrink: 0; min-width: 56px; text-align: right;
+}
+.pr-note {
+  font-size: 0.72rem; color: var(--text-secondary);
+  line-height: 1.6; margin-top: 2px;
+}
+.pr-body { flex: 1; min-width: 0; }
+
+/* ── Plugin Custom Detail Sections ── */
+.pr-custom-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 8px; font-size: 0.65rem; cursor: pointer;
+  color: var(--text-muted); user-select: none;
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+.pr-custom-toggle:hover { color: var(--accent-blue); border-color: var(--border-default); background: var(--bg-hover); }
+.pr-custom-toggle .arrow { display: inline-block; transition: transform var(--transition-fast); font-size: 0.55rem; }
+.pr-custom-toggle.open .arrow { transform: rotate(90deg); }
+.pr-custom-toggle.open { color: var(--accent-blue); }
+
+.pr-custom-detail {
+  display: none; margin-top: 10px;
+  padding: 14px; border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  animation: slideUp 0.2s ease;
+}
+.pr-custom-detail.open { display: block; }
+
+.pr-custom-header {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-muted); margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Agent voting sub-rows */
+.agent-sub-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.025);
+  font-size: 0.72rem;
+}
+.agent-sub-row:last-child { border-bottom: none; }
+.agent-sub-name { min-width: 88px; font-weight: 600; font-size: 0.7rem; color: var(--text-secondary); flex-shrink: 0; }
+.agent-sub-verdict {
+  font-size: 0.6rem; padding: 2px 7px; border-radius: 3px;
+  font-weight: 700; font-family: var(--font-mono); flex-shrink: 0;
+  min-width: 34px; text-align: center;
+}
+.agent-sub-verdict.buy  { background: var(--accent-green-bg); color: var(--accent-green); }
+.agent-sub-verdict.sell { background: var(--accent-red-bg); color: var(--accent-red); }
+.agent-sub-verdict.hold { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.agent-sub-conf { font-size: 0.65rem; color: var(--text-muted); flex-shrink: 0; min-width: 36px; text-align: right; }
+.agent-sub-note { font-size: 0.65rem; color: var(--text-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Market analysis grid */
+.market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.market-factor {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px; border-radius: 6px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+}
+.market-factor-label { font-size: 0.68rem; color: var(--text-secondary); font-weight: 500; }
+.market-factor-score { font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; }
+.market-factor-score.positive { color: var(--accent-green); }
+.market-factor-score.negative { color: var(--accent-red); }
+.market-factor-score.neutral  { color: var(--accent-amber); }
+.market-factor-note { font-size: 0.62rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Quant metrics grid */
+.quant-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.quant-metric {
+  text-align: center; padding: 10px 4px; border-radius: 6px;
+  background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.12);
+}
+.quant-metric-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.quant-metric-value { font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-purple); margin-top: 3px; }
+
+.factor-contrib-title { font-size: 0.62rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.factor-contrib-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.68rem; }
+.factor-contrib-name { min-width: 100px; font-family: var(--font-mono); font-size: 0.64rem; color: var(--text-secondary); }
+.factor-contrib-bar-wrap { flex: 1; height: 5px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; }
+.factor-contrib-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
+.factor-contrib-val { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); min-width: 40px; text-align: right; }
+
+.results-footer {
+  padding: 12px 18px; border-top: 1px solid var(--border-subtle);
+  display: flex; gap: 8px;
+}
+
+/* Empty state */
+.empty-zone {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 0.85rem; text-align: center;
+  padding: 40px;
+}
+.empty-zone .hint { font-size: 0.72rem; margin-top: 8px; color: var(--text-muted); opacity: 0.7; }
+
+/* ============================================================
+   VIEW 2: Watchlist
+   ============================================================ */
+.wl-layout {
+  flex: 1; padding: 14px 24px 20px; display: flex; flex-direction: column;
+  gap: 14px; overflow: hidden;
+}
+
+.tabs {
+  display: flex; gap: 2px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius);
+  padding: 3px; background: var(--bg-surface); width: fit-content;
+}
+.tab {
+  padding: 7px 16px; border-radius: var(--radius-sm);
+  font-size: 0.75rem; cursor: pointer; border: none;
+  background: transparent; color: var(--text-muted);
+  font-family: inherit; transition: all var(--transition-fast);
+}
+.tab.active { background: var(--bg-hover); color: var(--text-primary); font-weight: 600; }
+.tab .tab-count { font-size: 0.65rem; color: var(--text-muted); margin-left: 4px; }
+
+.wl-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); overflow: hidden;
+  background: var(--bg-surface);
+}
+.wl-row {
+  display: flex; align-items: center; padding: 12px 18px;
+  border-bottom: 1px solid var(--border-subtle); gap: 14px;
+  transition: background var(--transition-fast);
+}
+.wl-row:last-child { border-bottom: none; }
+.wl-row:hover { background: var(--bg-hover); }
+.wl-row .wl-code { font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; min-width: 100px; }
+.wl-row .wl-name { font-size: 0.8rem; color: var(--text-secondary); flex: 1; }
+.wl-row .wl-market { font-size: 0.68rem; color: var(--text-muted); min-width: 50px; }
+.wl-row .wl-date { font-size: 0.68rem; color: var(--text-muted); min-width: 90px; }
+.wl-row .wl-remove {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: none; background: transparent; color: var(--text-muted);
+  cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition-fast);
+}
+.wl-row .wl-remove:hover { background: var(--accent-red-bg); color: var(--accent-red); }
+
+.coverage-bar {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: 14px 18px;
+  font-size: 0.75rem; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 24px;
+}
+.coverage-item { display: flex; align-items: center; gap: 8px; }
+.coverage-dot { width: 7px; height: 7px; border-radius: 50%; }
+.coverage-dot.ok { background: var(--accent-green); }
+.coverage-dot.warn { background: var(--accent-amber); }
+
+/* Modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--bg-elevated); border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl); width: 420px;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.15s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-head {
+  padding: 18px 20px; border-bottom: 1px solid var(--border-subtle);
+  font-weight: 700; font-size: 0.88rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-body { padding: 20px; }
+.modal-foot {
+  padding: 14px 20px; border-top: 1px solid var(--border-subtle);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+.modal-search {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg-input); border: 1px solid var(--border-default);
+  border-radius: var(--radius); color: var(--text-primary);
+  font-size: 0.85rem; font-family: var(--font-mono); outline: none;
+}
+.modal-search:focus { border-color: var(--border-active); }
+.modal-result {
+  margin-top: 10px; padding: 10px 14px;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background var(--transition-fast);
+  display: flex; align-items: center; gap: 10px; font-size: 0.82rem;
+}
+.modal-result:hover { background: var(--bg-hover); }
+.modal-result.selected { background: var(--accent-blue-bg); border: 1px solid rgba(59,130,246,0.3); }
+.modal-result .mod-code { font-family: var(--font-mono); font-weight: 600; }
+.modal-result .mod-name { color: var(--text-secondary); font-size: 0.75rem; }
+.modal-result .mod-market { font-size: 0.65rem; color: var(--text-muted); margin-left: auto; }
+
+/* ============================================================
+   VIEW 3: Monitor
+   ============================================================ */
+.mon-layout {
+  flex: 1; padding: 14px 24px 20px; display: flex; flex-direction: column;
+  gap: 14px; overflow-y: auto;
+}
+
+.status-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 18px; border-bottom: 1px solid var(--border-subtle);
+}
+.status-row:last-child { border-bottom: none; }
+.status-indicator {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-indicator.ok { background: var(--accent-green); box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+.status-indicator.warn { background: var(--accent-amber); box-shadow: 0 0 8px rgba(245,158,11,0.4); }
+.status-indicator.err { background: var(--accent-red); box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+.status-indicator.off { background: var(--text-muted); }
+.status-info { flex: 1; }
+.status-name { font-size: 0.78rem; font-weight: 600; }
+.status-detail { font-size: 0.68rem; color: var(--text-muted); }
+.status-extra {
+  font-size: 0.7rem; color: var(--text-muted); text-align: right;
+  min-width: 80px;
+}
+
+.signal-card-content {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; font-size: 0.75rem;
+}
+.signal-stat { color: var(--text-muted); }
+.signal-stat strong { color: var(--text-primary); display: block; font-size: 0.9rem; }
+.pipeline-mini {
+  display: flex; align-items: center; gap: 6px; padding: 10px 0;
+  font-size: 0.73rem; color: var(--text-muted);
+}
+.pipeline-mini .pipe-step {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 20px;
+  background: var(--bg-hover); font-size: 0.7rem;
+}
+.pipeline-mini .pipe-dot { width: 6px; height: 6px; border-radius: 50%; }
+.pipeline-mini .pipe-dot.ok { background: var(--accent-green); }
+.pipeline-mini .pipe-connector {
+  width: 20px; height: 1px; background: var(--border-default);
+}
+.rd-status-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0;
+}
+
+/* ============================================================
+   VIEW 4: Research
+   ============================================================ */
+.res-layout {
+  flex: 1; padding: 14px 24px 20px; display: flex; flex-direction: column;
+  gap: 14px; overflow-y: auto;
+}
+
+.factor-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
+}
+.factor-row:last-child { border-bottom: none; }
+.factor-name { font-weight: 600; font-size: 0.82rem; }
+.factor-desc { font-size: 0.7rem; color: var(--text-muted); }
+.factor-src {
+  font-size: 0.62rem; padding: 2px 7px; border-radius: 10px;
+  font-weight: 600; flex-shrink: 0;
+}
+.factor-src.builtin { background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+.factor-src.custom { background: var(--accent-purple); color: #fff; background-opacity: 0.2; }
+.factor-stat { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); min-width: 80px; text-align: right; }
+
+.task-history-item {
+  padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer; transition: background var(--transition-fast);
+}
+.task-history-item:last-child { border-bottom: none; }
+.task-history-item:hover .task-h-title { color: var(--text-primary); }
+.task-h-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.task-h-title { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); transition: color var(--transition-fast); }
+.task-h-status {
+  font-size: 0.62rem; padding: 3px 8px; border-radius: 10px; font-weight: 600;
+}
+.task-h-status.done { background: var(--accent-green-bg); color: var(--accent-green); }
+.task-h-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+.task-h-output { font-size: 0.72rem; color: var(--text-secondary); margin-top: 6px; }
+
+.mini-terminal {
+  background: rgba(0,0,0,0.45); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius); padding: 12px 16px;
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: var(--text-muted); max-height: 180px; overflow-y: auto;
+  line-height: 1.7;
+}
+.mini-terminal .t-ok { color: var(--accent-green); }
+.mini-terminal .t-warn { color: var(--accent-amber); }
+.mini-terminal .t-blue { color: var(--accent-blue); }
+
+@media (max-width: 900px) {
+  .signal-card-content { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 左侧：导航 + 服务面板 ============ -->
+<aside class="sidebar">
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-name">
+      <span class="brand-dot"></span> SEA Engine
+    </div>
+    <div class="brand-sub">Stock Evaluation Aggregator v4.0</div>
+  </div>
+
+  <!-- 在线评估插件 -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">在线评估服务</div>
+    <div class="sidebar-row active" data-plugin="ta-cn" onclick="togglePlugin(this, 'ta-cn')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">TradingAgents-CN</span>
+      <span class="row-tag">A股</span>
+    </div>
+    <div class="sidebar-row active" data-plugin="ta" onclick="togglePlugin(this, 'ta')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">TradingAgents</span>
+      <span class="row-tag">美股</span>
+    </div>
+    <div class="sidebar-row active" data-plugin="qlib" id="qlibSidebar" onclick="togglePlugin(this, 'qlib')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">Qlib 量化信号</span>
+      <span class="row-tag" id="qlibTag">就绪</span>
+    </div>
+    <div class="sidebar-row disabled" data-plugin="finrobot">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">FinRobot</span>
+      <span class="row-tag">未启用</span>
+    </div>
+  </div>
+
+  <!-- 视图导航 -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">导航</div>
+    <div class="sidebar-row nav-row active" data-view="evaluate" onclick="switchView('evaluate')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">评估</span>
+      <span class="row-tag">⌘1</span>
+    </div>
+    <div class="sidebar-row nav-row" data-view="watchlist" onclick="switchView('watchlist')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">关注管理</span>
+      <span class="row-tag">⌘2</span>
+    </div>
+    <div class="sidebar-row nav-row" data-view="monitor" onclick="switchView('monitor')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">系统监控</span>
+      <span class="row-tag">⌘3</span>
+    </div>
+    <div class="sidebar-row nav-row" data-view="research" onclick="switchView('research')">
+      <span class="sidebar-dot"></span>
+      <span class="row-label">研究管理</span>
+      <span class="row-tag">⌘4</span>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+
+  <!-- 内置因子库（紧凑列表） -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">因子库</div>
+    <div class="sidebar-factor-list">
+      <div>▸ Alpha158 <span style="color:var(--text-muted);">· 158因子</span></div>
+      <div>▸ Alpha360 <span style="color:var(--text-muted);">· 序列特征</span></div>
+      <div>▸ Alpha101 <span style="color:var(--text-muted);">· WorldQuant</span></div>
+      <div id="sidebarCustomFactor1" style="display:none;">▸ RD-001 <span style="color:var(--accent-purple);">· 自定义</span></div>
+      <div id="sidebarCustomFactor2" style="display:none;">▸ RD-002 <span style="color:var(--accent-purple);">· 自定义</span></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ============ Main Content ============ -->
+<div class="main-area">
+
+  <!-- ================================================================ -->
+  <!-- VIEW 1: Evaluate                                                  -->
+  <!-- ================================================================ -->
+  <div class="view active" id="view-evaluate">
+    <div class="eval-layout">
+      <!-- Search -->
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" class="search-input" id="searchInput"
+               placeholder="输入标的代码或公司名称…（例：600519 / AAPL / 贵州茅台）"
+               autocomplete="off"
+               oninput="filterWatchlist()"
+               onkeydown="if(event.key==='Enter')handleEvalSearch()">
+      </div>
+
+      <!-- Watchlist -->
+      <div class="watchlist-wrap">
+        <div class="watchlist-header">
+          ★ 自选标的 <span class="count" id="wlCount">4</span>
+        </div>
+        <div id="watchlistContainer"></div>
+      </div>
+
+      <!-- Recent evaluations -->
+      <div style="flex-shrink:0;">
+        <div class="recent-label" style="margin-bottom:6px;">最近评估</div>
+        <div id="recentContainer">
+          <div class="recent-row" onclick="switchWatchlistStock('600519.SS')">
+            <span class="re-code">600519.SS</span>
+            <span class="re-time">2h前</span>
+            <span class="re-dir">2买 / 1持</span>
+            <span class="re-score" style="color:var(--accent-green);">+54</span>
+          </div>
+          <div class="recent-row" onclick="switchWatchlistStock('AAPL')">
+            <span class="re-code">AAPL</span>
+            <span class="re-time">1d前</span>
+            <span class="re-dir">1买 / 2持</span>
+            <span class="re-score" style="color:var(--accent-amber);">+12</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results panel (expandable) -->
+      <div class="results-panel" id="resultsPanel"></div>
+
+      <!-- Empty state -->
+      <div class="empty-zone" id="evalEmpty">
+        <div>
+          搜索或点击上方自选标的开始评估<br>
+          <span class="hint">支持 A 股（.SS / .SZ）和美股代码</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- VIEW 2: Watchlist Management                                      -->
+  <!-- ================================================================ -->
+  <div class="view" id="view-watchlist">
+    <div class="view-header">
+      <span class="view-title">关注标的管理</span>
+      <button class="btn primary" onclick="openAddModal()">+ 添加标的</button>
+    </div>
+    <div class="wl-layout">
+      <div class="tabs" id="wlTabs">
+        <button class="tab active" data-market="all" onclick="filterWatchlistTab('all', this)">全部 <span class="tab-count">4</span></button>
+        <button class="tab" data-market="A" onclick="filterWatchlistTab('A', this)">A 股 <span class="tab-count">3</span></button>
+        <button class="tab" data-market="US" onclick="filterWatchlistTab('US', this)">美股 <span class="tab-count">1</span></button>
+        <button class="tab" data-market="HK" onclick="filterWatchlistTab('HK', this)">港股 <span class="tab-count">0</span></button>
+      </div>
+
+      <div class="wl-table" id="wlTable"></div>
+
+      <div class="coverage-bar">
+        <span style="color:var(--text-muted);">信号覆盖情况</span>
+        <div class="coverage-item">
+          <span class="coverage-dot ok"></span> Qlib 覆盖: <strong id="qlibCov">3/4</strong>
+        </div>
+        <div class="coverage-item">
+          <span class="coverage-dot ok"></span> LLM 覆盖: <strong>4/4</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- VIEW 3: Monitor                                                   -->
+  <!-- ================================================================ -->
+  <div class="view" id="view-monitor">
+    <div class="view-header">
+      <span class="view-title">系统监控</span>
+      <span style="font-size:0.68rem;color:var(--text-muted);">状态刷新于 2 秒前</span>
+    </div>
+    <div class="mon-layout">
+
+      <!-- Online Evaluation Services -->
+      <div class="card">
+        <div class="card-header">在线评估服务</div>
+        <div class="card-body no-padding">
+          <div class="status-row">
+            <span class="status-indicator ok"></span>
+            <div class="status-info">
+              <div class="status-name">TradingAgents-CN</div>
+              <div class="status-detail">A 股优化版 · 多智能体 LLM 评估</div>
+            </div>
+            <div class="status-extra">延迟 1.2s<br>A 股</div>
+          </div>
+          <div class="status-row">
+            <span class="status-indicator ok"></span>
+            <div class="status-info">
+              <div class="status-name">TradingAgents</div>
+              <div class="status-detail">原版 · 全球市场多智能体评估</div>
+            </div>
+            <div class="status-extra">延迟 1.8s<br>美股</div>
+          </div>
+          <div class="status-row">
+            <span class="status-indicator ok"></span>
+            <div class="status-info">
+              <div class="status-name">Qlib 量化信号</div>
+              <div class="status-detail">LightGBM 模型 · 全市场覆盖</div>
+            </div>
+            <div class="status-extra">延迟 12ms<br>全市场</div>
+          </div>
+          <div class="status-row">
+            <span class="status-indicator off"></span>
+            <div class="status-info">
+              <div class="status-name">FinRobot</div>
+              <div class="status-detail">候选插件 · 深度研报分析</div>
+            </div>
+            <div class="status-extra" style="color:var(--text-muted);">未启用</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Qlib Signal Library -->
+      <div class="card" id="monitorSignalCard">
+        <div class="card-header">
+          Qlib 信号库
+          <span style="font-size:0.65rem;color:var(--accent-green);font-weight:400;">● 正常</span>
+        </div>
+        <div class="card-body">
+          <div class="signal-card-content">
+            <div class="signal-stat"><strong>3.2 GB</strong>CSI300 日线数据</div>
+            <div class="signal-stat"><strong>2 小时前</strong>信号更新时间</div>
+            <div class="signal-stat"><strong>300 / 300</strong>标的覆盖</div>
+            <div class="signal-stat"><strong>06-16</strong>信号有效期</div>
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn ghost" onclick="switchView('research')" style="font-size:0.7rem;">查看流水线详情 →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Pipeline Mini -->
+      <div class="card">
+        <div class="card-header">数据处理流水线</div>
+        <div class="card-body">
+          <div class="pipeline-mini">
+            <div class="pipe-step"><span class="pipe-dot ok"></span>数据加载</div>
+            <div class="pipe-connector"></div>
+            <div class="pipe-step"><span class="pipe-dot ok"></span>特征工程</div>
+            <div class="pipe-connector"></div>
+            <div class="pipe-step"><span class="pipe-dot ok"></span>模型训练</div>
+            <div class="pipe-connector"></div>
+            <div class="pipe-step"><span class="pipe-dot ok"></span>信号就绪</div>
+          </div>
+          <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;">
+            3.2GB 日线 → 160 因子 → LightGBM (IC 0.045) → 300/300 覆盖
+          </div>
+        </div>
+      </div>
+
+      <!-- RD-Agent Status -->
+      <div class="card">
+        <div class="card-header">
+          RD-Agent 离线研究
+          <span style="font-size:0.65rem;color:var(--accent-green);font-weight:400;">● 空闲</span>
+        </div>
+        <div class="card-body">
+          <div class="rd-status-bar">
+            <span style="font-size:0.8rem;">
+              上次运行 <strong>06-08 04:00</strong>
+              · 产出 <strong>2</strong> 个因子
+              · 耗时 <strong>48 min</strong>
+            </span>
+            <span style="display:flex;gap:8px;">
+              <button class="btn primary" onclick="triggerResearchFromMonitor()">手动触发</button>
+              <button class="btn ghost">设置定时…</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- VIEW 4: Research                                                  -->
+  <!-- ================================================================ -->
+  <div class="view" id="view-research">
+    <div class="view-header">
+      <span class="view-title">研究管理</span>
+    </div>
+    <div class="res-layout">
+
+      <!-- Factor Library -->
+      <div class="card">
+        <div class="card-header">因子库</div>
+        <div class="card-body no-padding" style="padding:0 18px;">
+          <div class="factor-row">
+            <div>
+              <div class="factor-name">Alpha158 基准因子集</div>
+              <div class="factor-desc">158 个经典量化因子（动量、均线、波动率…）</div>
+            </div>
+            <span class="factor-stat">内置 · --</span>
+            <span class="factor-src builtin">内置</span>
+          </div>
+          <div class="factor-row">
+            <div>
+              <div class="factor-name">Alpha360 序列特征</div>
+              <div class="factor-desc">60 天原始行情序列 · 适配深度学习模型</div>
+            </div>
+            <span class="factor-stat">内置 · --</span>
+            <span class="factor-src builtin">内置</span>
+          </div>
+          <div class="factor-row">
+            <div>
+              <div class="factor-name">Alpha101 因子集</div>
+              <div class="factor-desc">WorldQuant 公开的 101 个量化公式</div>
+            </div>
+            <span class="factor-stat">内置 · --</span>
+            <span class="factor-src builtin">内置</span>
+          </div>
+          <div class="factor-row" id="factorRD1" style="display:none;">
+            <div>
+              <div class="factor-name">RD-001 日内反转+放量</div>
+              <div class="factor-desc">捕捉早盘跌、尾盘涨的日内反转信号</div>
+            </div>
+            <span class="factor-stat" style="color:var(--accent-green);">IC 0.072</span>
+            <span class="factor-src custom" style="background:rgba(139,92,246,0.25);color:#c4b5fd;">RD-Agent</span>
+          </div>
+          <div class="factor-row" id="factorRD2" style="display:none;">
+            <div>
+              <div class="factor-name">RD-002 低估值+高分红+趋势反转</div>
+              <div class="factor-desc">价值因子与动量的复合信号</div>
+            </div>
+            <span class="factor-stat" style="color:var(--accent-green);">IC 0.058</span>
+            <span class="factor-src custom" style="background:rgba(139,92,246,0.25);color:#c4b5fd;">RD-Agent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RD-Agent Task History -->
+      <div class="card">
+        <div class="card-header">
+          RD-Agent 研究任务
+          <button class="btn primary" onclick="triggerResearchFromResearch()">启动新研究</button>
+        </div>
+        <div class="card-body no-padding" style="padding:0 18px;">
+          <div id="taskHistoryContainer">
+            <div class="task-history-item">
+              <div class="task-h-top">
+                <span class="task-h-title">▸ CSI300 因子自动挖掘</span>
+                <span class="task-h-status done">已完成</span>
+              </div>
+              <div class="task-h-meta">06-08 04:00 · 耗时 48 min · 迭代 10 轮</div>
+              <div class="task-h-output">产出: RD-001（IC 0.072）, RD-002（IC 0.058） · 模型已更新 · 信号库已刷新</div>
+            </div>
+            <div class="task-history-item">
+              <div class="task-h-top">
+                <span class="task-h-title">▸ CSI300 因子自动挖掘</span>
+                <span class="task-h-status done">已完成</span>
+              </div>
+              <div class="task-h-meta">06-01 10:00 · 耗时 52 min · 迭代 10 轮</div>
+              <div class="task-h-output" style="color:var(--accent-amber);">产出: 1 个因子被废弃（IC < 0.03） · 未更新信号库</div>
+            </div>
+          </div>
+
+          <!-- Running task placeholder -->
+          <div id="runningTaskContainer"></div>
+
+          <div style="padding:12px 0;">
+            <button class="btn ghost" onclick="toggleTimedResearch()">⚑ 定时设置</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Log -->
+      <div class="card">
+        <div class="card-header">
+          系统日志
+          <button class="btn ghost" onclick="clearLogs()">清空</button>
+        </div>
+        <div class="card-body" style="padding:0 16px 16px;">
+          <div class="mini-terminal" id="systemLog">
+            <div><span class="t-ok">[16:32:01]</span> 评估完成 600519.SS (3/3 成功)</div>
+            <div><span class="t-ok">[16:30:15]</span> Qlib 信号查询 600519.SS · 12ms</div>
+            <div>[16:30:14] TA-CN 多智能体推理中…</div>
+            <div>[16:28:00] SEA Engine v4.0 启动完成</div>
+            <div><span class="t-ok">[16:28:00]</span> Qlib 信号库连接正常 · CSI300 300/300</div>
+            <div><span class="t-ok">[16:28:00]</span> TradingAgents-CN 就绪</div>
+            <div><span class="t-ok">[16:28:00]</span> TradingAgents 就绪</div>
+            <div><span class="t-ok">[16:28:00]</span> RD-Agent 就绪，等待触发</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ Add Stock Modal ============ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      添加关注标的
+      <button class="btn ghost" onclick="closeAddModal()" style="font-size:1rem;">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="modal-search" id="modalSearch"
+             placeholder="输入代码搜索…（例：600519）"
+             oninput="modalSearchStocks()">
+      <div id="modalResults" style="margin-top:4px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAddModal()">取消</button>
+      <button class="btn primary" id="modalConfirmBtn" disabled onclick="confirmAddStock()">确认添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Toast ============ -->
+<div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-default);padding:10px 20px;border-radius:var(--radius);font-size:0.78rem;z-index:300;box-shadow:var(--shadow-lg);transition:all var(--transition-normal);"></div>
+
+<script>
+// ================================================================
+// State
+// ================================================================
+const STATE = {
+  activeView: 'evaluate',
+  selectedTicker: null,
+  selectedModalTicker: null,
+  qlibStatus: 'fresh', // fresh | stale | researching
+  rdRunning: false,
+  rdProgress: 0,
+  rdInterval: null,
+  customFactorCount: 0,
+  activePlugins: new Set(['ta-cn', 'ta', 'qlib']),
+  lastSignalUpdate: new Date(Date.now() - 2 * 3600 * 1000),
+  watchlist: [
+    { code: '600519.SS', name: '贵州茅台', market: 'A', signal: 'fresh', score: 0.82, added: '06-01' },
+    { code: '000858.SZ', name: '五粮液', market: 'A', signal: 'fresh', score: 0.31, added: '06-03' },
+    { code: '601318.SS', name: '中国平安', market: 'A', signal: 'stale', score: -0.08, added: '06-05' },
+    { code: 'AAPL', name: 'Apple Inc.', market: 'US', signal: 'fresh', score: -0.15, added: '06-01' },
+  ],
+  recents: [
+    { code: '600519.SS', time: '2h前', buy: 2, hold: 1, sell: 0, score: 54 },
+    { code: 'AAPL', time: '1d前', buy: 1, hold: 2, sell: 0, score: 12 },
+  ],
+  mockResults: {
+    '600519.SS': [
+      { source: 'TradingAgents-CN', type: 'LLM', verdict: 'BUY', conf: 0.82, time: '45.2 s', note: '多智能体共识看多。基本面：营收超预期 25%；情绪面：市场情绪积极；技术面：短线支撑强劲。综合分析建议买入。',
+        custom: { type: 'multi-agent', agents: [
+          { name: '基本面分析师', verdict: 'BUY', conf: 0.85, note: '营收超预期25%，ROE稳定在20%+，毛利率持续改善' },
+          { name: '情绪分析师',   verdict: 'BUY', conf: 0.78, note: '市场情绪积极，北向资金持续流入，舆情正面' },
+          { name: '技术分析师',   verdict: 'BUY', conf: 0.82, note: '均线多头排列，MACD金叉，成交放量突破前高' },
+          { name: '风险分析师',   verdict: 'HOLD', conf: 0.60, note: '宏观消费环境偏弱需关注，政策风险可控' },
+        ]}
+      },
+      { source: 'TradingAgents', type: 'LLM', verdict: 'HOLD', conf: 0.55, time: '38.1 s', note: '全球宏观不确定性偏高，SEC 财报无明显催化剂，技术面提示短期超买。建议暂时观望。',
+        custom: { type: 'market-analysis', factors: [
+          { label: '宏观环境', score: -0.22, note: '全球利率维持高位，新兴市场资金流出压力' },
+          { label: '行业趋势', score: 0.31, note: '白酒板块防御属性受青睐，消费升级趋势持续' },
+          { label: '公司基本面', score: 0.48, note: '财报稳健，现金流充裕，但增速放缓' },
+          { label: '技术面', score: -0.15, note: '短期超买，RSI进入70+区域，回调风险累积' },
+        ]}
+      },
+      { source: 'Qlib 量化信号', type: 'ML', verdict: 'HOLD', conf: 0.61, time: '38 ms', note: 'Alpha = +0.012，因子 IC = 0.045，预测 20 日收益率 +1.2%。基于 LightGBM 模型，输入含 160 个因子。',
+        custom: { type: 'quant-signal', metrics: [
+          { label: 'Alpha', value: '+0.012' }, { label: 'IC', value: '0.045' },
+          { label: 'ICIR', value: '0.58' }, { label: 'Sharpe', value: '1.21' },
+        ], topFactors: [
+          { name: 'momentum_20d', contribution: 0.18 },
+          { name: 'volatility_60d', contribution: 0.14 },
+          { name: 'turnover_5d', contribution: 0.11 },
+          { name: 'rsi_14d', contribution: 0.08 },
+        ]}
+      },
+    ],
+    '000858.SZ': [
+      { source: 'TradingAgents-CN', type: 'LLM', verdict: 'BUY', conf: 0.71, time: '42.0 s', note: '白酒板块整体回暖，公司一季度动销数据良好，估值处于历史中低位区间，中线看好。',
+        custom: { type: 'multi-agent', agents: [
+          { name: '基本面分析师', verdict: 'BUY', conf: 0.75, note: '一季度动销超预期，渠道库存健康，提价预期明确' },
+          { name: '情绪分析师',   verdict: 'BUY', conf: 0.72, note: '白酒板块资金回暖，机构调研密集，关注度提升' },
+          { name: '技术分析师',   verdict: 'HOLD', conf: 0.55, note: '短期横盘整理，等待放量突破信号确认' },
+          { name: '风险分析师',   verdict: 'HOLD', conf: 0.58, note: '行业竞争加剧，消费税改革存在不确定性' },
+        ]}
+      },
+      { source: 'Qlib 量化信号', type: 'ML', verdict: 'HOLD', conf: 0.52, time: '34 ms', note: 'Alpha = +0.008，信号强度较弱，因子 IC = 0.045，建议等待更明确的技术信号。',
+        custom: { type: 'quant-signal', metrics: [
+          { label: 'Alpha', value: '+0.008' }, { label: 'IC', value: '0.045' },
+          { label: 'ICIR', value: '0.42' }, { label: 'Sharpe', value: '0.89' },
+        ], topFactors: [
+          { name: 'momentum_20d', contribution: 0.12 },
+          { name: 'volatility_60d', contribution: 0.10 },
+          { name: 'turnover_5d', contribution: 0.07 },
+        ]}
+      },
+    ],
+    'AAPL': [
+      { source: 'TradingAgents', type: 'LLM', verdict: 'SELL', conf: 0.68, time: '51.3 s', note: 'iPhone 销售数据低于预期，Vision Pro 出货量下调，叠加反垄断调查风险。短期建议回避。',
+        custom: { type: 'market-analysis', factors: [
+          { label: '宏观环境', score: -0.28, note: '科技股估值承压，FOMC鹰派信号压制风险偏好' },
+          { label: '行业趋势', score: -0.35, note: '智能手机市场饱和，AI硬件商业化节奏不明' },
+          { label: '公司基本面', score: -0.12, note: 'iPhone收入占比过高，服务业务增速不足以对冲' },
+          { label: '监管风险', score: -0.45, note: '欧盟数字市场法案+美国DOJ反垄断双重压力' },
+        ]}
+      },
+      { source: 'Qlib 量化信号', type: 'ML', verdict: 'HOLD', conf: 0.58, time: '26 ms', note: 'Alpha = -0.005，20 日预测收益率 -0.5%，信号不显著。模型建议观望。',
+        custom: { type: 'quant-signal', metrics: [
+          { label: 'Alpha', value: '-0.005' }, { label: 'IC', value: '0.038' },
+          { label: 'ICIR', value: '0.31' }, { label: 'Sharpe', value: '0.67' },
+        ], topFactors: [
+          { name: 'momentum_20d', contribution: 0.15 },
+          { name: 'rsi_14d', contribution: 0.11 },
+          { name: 'volatility_60d', contribution: 0.09 },
+        ]}
+      },
+    ],
+    '601318.SS': [
+      { source: 'TradingAgents-CN', type: 'LLM', verdict: 'HOLD', conf: 0.53, time: '44.8 s', note: '保险行业保费增速放缓，投资收益承压，但估值处于历史低位，下行空间有限。',
+        custom: { type: 'multi-agent', agents: [
+          { name: '基本面分析师', verdict: 'HOLD', conf: 0.55, note: '保费增速放缓但新业务价值率改善，估值PB<1有安全边际' },
+          { name: '情绪分析师',   verdict: 'SELL', conf: 0.62, note: '市场对保险板块情绪偏空，机构持仓下降' },
+          { name: '技术分析师',   verdict: 'HOLD', conf: 0.48, note: '底部盘整，成交量萎缩，趋势不明朗' },
+          { name: '风险分析师',   verdict: 'HOLD', conf: 0.52, note: '利率下行利差损风险，地产敞口信用风险需跟踪' },
+        ]}
+      },
+      { source: 'Qlib 量化信号', type: 'ML', verdict: 'SELL', conf: 0.64, time: '31 ms', note: 'Alpha = -0.022，预测 20 日收益率 -2.2%。模型建议短期回避，等待企稳信号。',
+        custom: { type: 'quant-signal', metrics: [
+          { label: 'Alpha', value: '-0.022' }, { label: 'IC', value: '0.041' },
+          { label: 'ICIR', value: '0.38' }, { label: 'Sharpe', value: '0.54' },
+        ], topFactors: [
+          { name: 'momentum_20d', contribution: 0.20 },
+          { name: 'volatility_60d', contribution: 0.16 },
+          { name: 'turnover_5d', contribution: 0.13 },
+          { name: 'volume_ratio', contribution: 0.10 },
+        ]}
+      },
+    ],
+  },
+};
+
+// ================================================================
+// View Switching
+// ================================================================
+function switchView(viewId) {
+  STATE.activeView = viewId;
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.sidebar-row.nav-row').forEach(b => b.classList.remove('active'));
+
+  document.getElementById('view-' + viewId).classList.add('active');
+  const navRow = document.querySelector('.sidebar-row.nav-row[data-view="' + viewId + '"]');
+  if (navRow) navRow.classList.add('active');
+
+  if (viewId === 'watchlist') renderWatchlistTab('all');
+  if (viewId === 'evaluate') renderWatchlistRows();
+}
+
+// ================================================================
+// Plugin Toggle
+// ================================================================
+function togglePlugin(el, pluginId) {
+  if (el.classList.contains('disabled')) return;
+  el.classList.toggle('active');
+  if (el.classList.contains('active')) {
+    STATE.activePlugins.add(pluginId);
+  } else {
+    STATE.activePlugins.delete(pluginId);
+  }
+}
+
+// ================================================================
+// View 1: Evaluate
+// ================================================================
+function renderWatchlistRows(filter) {
+  const container = document.getElementById('watchlistContainer');
+  let list = STATE.watchlist;
+  if (filter) {
+    const q = filter.toLowerCase();
+    list = list.filter(s => s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+  }
+
+  const dirSign = (s) => s > 0.05 ? '+' : s < -0.05 ? '' : '';
+
+  container.innerHTML = list.map(s => {
+    const selected = STATE.selectedTicker === s.code;
+    const scoreClass = s.score > 0.05 ? 'positive' : s.score < -0.05 ? 'negative' : 'neutral';
+    const scoreDisplay = s.score > 0.05 ? '+' + s.score.toFixed(2) :
+                         s.score < -0.05 ? s.score.toFixed(2) : '--';
+    return `
+    <div class="stock-row${selected ? ' selected' : ''}" onclick="selectStock('${s.code}')">
+      <span class="signal-dot ${s.signal === 'stale' ? 'stale' : s.signal === 'researching' ? 'researching' : 'fresh'}"></span>
+      <span class="s-code">${s.code}</span>
+      <span class="s-name">${s.name}</span>
+      <span class="s-market">${s.market === 'A' ? 'A 股' : '美股'}</span>
+      <span class="s-score ${scoreClass}">${scoreDisplay}</span>
+      <span class="s-arrow">▶</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('wlCount').textContent = list.length;
+}
+
+function filterWatchlist() {
+  const q = document.getElementById('searchInput').value.trim();
+  renderWatchlistRows(q);
+}
+
+function handleEvalSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  const match = STATE.watchlist.find(s =>
+    s.code.toLowerCase().includes(q.toLowerCase()) ||
+    s.name.toLowerCase().includes(q.toLowerCase())
+  );
+  if (match) {
+    selectStock(match.code);
+  } else {
+    selectStock(q.toUpperCase());
+  }
+}
+
+function selectStock(code) {
+  STATE.selectedTicker = code;
+  renderWatchlistRows(document.getElementById('searchInput').value.trim());
+  runEvaluation(code);
+}
+
+// ================================================================
+// Plugin Custom Detail Rendering
+// ================================================================
+function toggleCustomDetail(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+function renderPluginCustom(r) {
+  if (!r.custom) return '';
+  var c = r.custom;
+  var inner = '';
+  var vMap = { BUY: '买入', SELL: '卖出', HOLD: '持有' };
+
+  if (c.type === 'multi-agent') {
+    inner = '<div class="pr-custom-header">🤖 多智能体投票详情</div>' +
+      c.agents.map(function(a) {
+        var av = a.verdict.toLowerCase();
+        return '<div class="agent-sub-row">' +
+          '<span class="agent-sub-name">' + a.name + '</span>' +
+          '<span class="agent-sub-verdict ' + av + '">' + vMap[a.verdict] + '</span>' +
+          '<span class="agent-sub-conf">' + (a.conf * 100).toFixed(0) + '%</span>' +
+          '<span class="agent-sub-note" title="' + a.note + '">' + a.note + '</span>' +
+        '</div>';
+      }).join('');
+  } else if (c.type === 'market-analysis') {
+    inner = '<div class="pr-custom-header">🌐 市场环境分析</div><div class="market-grid">' +
+      c.factors.map(function(f) {
+        var sc = f.score > 0.1 ? 'positive' : f.score < -0.1 ? 'negative' : 'neutral';
+        var sign = f.score > 0 ? '+' : '';
+        return '<div class="market-factor">' +
+          '<span class="market-factor-label">' + f.label + '</span>' +
+          '<span class="market-factor-score ' + sc + '">' + sign + f.score.toFixed(2) + '</span>' +
+          '<span class="market-factor-note">' + f.note + '</span>' +
+        '</div>';
+      }).join('') + '</div>';
+  } else if (c.type === 'quant-signal') {
+    inner = '<div class="pr-custom-header">📊 量化信号详情</div>' +
+      '<div class="quant-metrics-grid">' +
+        c.metrics.map(function(m) {
+          return '<div class="quant-metric"><div class="quant-metric-label">' + m.label + '</div><div class="quant-metric-value">' + m.value + '</div></div>';
+        }).join('') +
+      '</div>' +
+      '<div class="factor-contrib-title">Top 因子贡献</div>' +
+      c.topFactors.map(function(f) {
+        return '<div class="factor-contrib-row">' +
+          '<span class="factor-contrib-name">' + f.name + '</span>' +
+          '<div class="factor-contrib-bar-wrap"><div class="factor-contrib-bar" style="width:' + (f.contribution / 0.2 * 100) + '%"></div></div>' +
+          '<span class="factor-contrib-val">' + f.contribution.toFixed(3) + '</span>' +
+        '</div>';
+      }).join('');
+  }
+
+  return '<div class="pr-custom-toggle" onclick="toggleCustomDetail(this)"><span class="arrow">▶</span> 展开详情</div>' +
+    '<div class="pr-custom-detail">' + inner + '</div>';
+}
+
+function runEvaluation(code) {
+  const results = STATE.mockResults[code];
+  if (!results) {
+    document.getElementById('resultsPanel').classList.remove('open');
+    document.getElementById('evalEmpty').style.display = 'flex';
+    addLog('warn', '未找到标的 "' + code + '" 的评估数据');
+    return;
+  }
+
+  document.getElementById('evalEmpty').style.display = 'none';
+  const panel = document.getElementById('resultsPanel');
+
+  const verCN = { BUY: '买入', SELL: '卖出', HOLD: '持有' };
+  const valid = results.filter(r => r.verdict !== 'NONE');
+
+  // Aggregate
+  let aggScore = 0, wTotal = 0;
+  const dirMap = { BUY: 1, HOLD: 0, SELL: -1 };
+  valid.forEach(r => { aggScore += dirMap[r.verdict] * r.conf; wTotal += r.conf; });
+  aggScore = wTotal > 0 ? aggScore / wTotal : 0;
+  const aggDisplay = aggScore > 0 ? '+' + (aggScore * 100).toFixed(0) : (aggScore * 100).toFixed(0);
+
+  const dirs = valid.map(r => r.verdict);
+  const buys = dirs.filter(d => d === 'BUY').length;
+  const holds = dirs.filter(d => d === 'HOLD').length;
+  const sells = dirs.filter(d => d === 'SELL').length;
+  const maxCount = Math.max(buys, holds, sells);
+  let level, levelCls;
+  if (maxCount === valid.length) { level = '强共识'; levelCls = 'consensus-strong'; }
+  else if (maxCount > valid.length * 0.6) { level = '中等共识'; levelCls = 'consensus-moderate'; }
+  else { level = '意见分歧'; levelCls = 'consensus-diverged'; }
+
+  const gColor = aggScore > 0.15 ? 'var(--accent-green)' : aggScore < -0.15 ? 'var(--accent-red)' : 'var(--accent-amber)';
+
+  panel.innerHTML = `
+    <div class="results-header">
+      <div class="results-ticker">${code} <span>评估报告</span></div>
+      <div class="agg-badge">
+        <div class="agg-meta" style="text-align:right;">
+          <div class="consensus" style="color:${gColor}">${level}</div>
+          <div style="font-size:0.68rem;color:var(--text-muted);">${buys}买 / ${holds}持 / ${sells}卖</div>
+        </div>
+        <div class="agg-score-circle" style="border-color:${gColor};color:${gColor};">${aggDisplay}</div>
+      </div>
+    </div>
+    ${results.map(r => {
+      const ver = r.verdict.toLowerCase();
+      const pct = (r.conf * 100).toFixed(0);
+      return `
+      <div class="plugin-result">
+        <div class="pr-source">
+          ${r.source}
+          <span class="pr-badge">${r.type}</span>
+        </div>
+        <span class="pr-verdict ${ver}">${verCN[r.verdict]}</span>
+        <div class="pr-conf">
+          <div class="pr-conf-label"><span>置信度</span><span>${pct}%</span></div>
+          <div class="pr-conf-bar"><div class="pr-conf-fill ${ver}" style="width:${pct}%"></div></div>
+        </div>
+        <span class="pr-time">${r.time}</span>
+        <div class="pr-body">
+          <div class="pr-note">${r.note}</div>
+          ${renderPluginCustom(r)}
+        </div>
+      </div>`;
+    }).join('')}
+    <div class="results-footer">
+      <button class="btn ghost" onclick="switchWatchlistStock('${code}')">★ ${STATE.watchlist.some(s => s.code === code) ? '已在关注列表' : '添加到关注'}</button>
+      <button class="btn ghost" onclick="runEvaluation('${code}');addLog('ok','重新评估 ${code}');">↻ 重新评估</button>
+      <button class="btn ghost">⬇ 导出 JSON</button>
+      <button class="btn ghost" onclick="STATE.selectedTicker=null;document.getElementById('resultsPanel').classList.remove('open');document.getElementById('evalEmpty').style.display='flex';renderWatchlistRows();" style="margin-left:auto;">× 关闭</button>
+    </div>`;
+
+  panel.classList.add('open');
+  addLog('ok', '评估完成 ' + code + ' (' + valid.length + '/' + results.length + ' 成功)');
+}
+
+function switchWatchlistStock(code) {
+  switchView('evaluate');
+  setTimeout(() => selectStock(code), 100);
+}
+
+// ================================================================
+// View 2: Watchlist
+// ================================================================
+function renderWatchlistTab(market) {
+  const container = document.getElementById('wlTable');
+  let list = STATE.watchlist;
+  if (market !== 'all') list = list.filter(s => s.market === market);
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:0.82rem;">该市场暂无关注标的</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(s => `
+    <div class="wl-row">
+      <span class="wl-code">${s.code}</span>
+      <span class="wl-name">${s.name}</span>
+      <span class="wl-market">${s.market === 'A' ? 'A 股' : '美股'}</span>
+      <span class="wl-date">添加于 ${s.added}</span>
+      <span class="signal-dot ${s.signal === 'stale' ? 'stale' : 'fresh'}" style="margin-right:8px;"></span>
+      <button class="wl-remove" onclick="event.stopPropagation();removeStock('${s.code}')" title="移除关注">×</button>
+    </div>
+  `).join('');
+}
+
+function filterWatchlistTab(market, el) {
+  document.querySelectorAll('#wlTabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderWatchlistTab(market);
+}
+
+function removeStock(code) {
+  if (!confirm('确认移除 ' + code + ' 的关注？')) return;
+  STATE.watchlist = STATE.watchlist.filter(s => s.code !== code);
+  updateTabCounts();
+  const activeTab = document.querySelector('#wlTabs .tab.active');
+  const market = activeTab ? activeTab.dataset.market : 'all';
+  renderWatchlistTab(market);
+  renderWatchlistRows(document.getElementById('searchInput')?.value?.trim() || '');
+  updateCoverage();
+  addLog('warn', '已移除关注: ' + code);
+}
+
+function updateTabCounts() {
+  const tabs = document.querySelectorAll('#wlTabs .tab');
+  tabs.forEach(t => {
+    const m = t.dataset.market;
+    const count = m === 'all' ? STATE.watchlist.length : STATE.watchlist.filter(s => s.market === m).length;
+    const countEl = t.querySelector('.tab-count');
+    if (countEl) countEl.textContent = count;
+  });
+}
+
+function updateCoverage() {
+  const qlibCov = STATE.watchlist.filter(s => ['600519.SS','000858.SZ','601318.SS'].includes(s.code)).length;
+  document.getElementById('qlibCov').textContent = qlibCov + '/' + STATE.watchlist.length;
+}
+
+// ================================================================
+// Add Stock Modal
+// ================================================================
+const ALL_AVAILABLE_STOCKS = [
+  { code: '600519.SS', name: '贵州茅台', market: 'A' },
+  { code: '000858.SZ', name: '五粮液', market: 'A' },
+  { code: '601318.SS', name: '中国平安', market: 'A' },
+  { code: '000001.SZ', name: '平安银行', market: 'A' },
+  { code: '600036.SS', name: '招商银行', market: 'A' },
+  { code: 'AAPL', name: 'Apple Inc.', market: 'US' },
+  { code: 'TSLA', name: 'Tesla Inc.', market: 'US' },
+  { code: 'MSFT', name: 'Microsoft Corp.', market: 'US' },
+  { code: 'GOOGL', name: 'Alphabet Inc.', market: 'US' },
+  { code: 'NVDA', name: 'NVIDIA Corp.', market: 'US' },
+];
+
+function openAddModal() {
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('modalSearch').value = '';
+  document.getElementById('modalResults').innerHTML = '';
+  document.getElementById('modalConfirmBtn').disabled = true;
+  STATE.selectedModalTicker = null;
+  setTimeout(() => document.getElementById('modalSearch').focus(), 100);
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+  STATE.selectedModalTicker = null;
+}
+
+function modalSearchStocks() {
+  const q = document.getElementById('modalSearch').value.trim().toLowerCase();
+  const container = document.getElementById('modalResults');
+  if (!q) { container.innerHTML = ''; return; }
+
+  const results = ALL_AVAILABLE_STOCKS.filter(s =>
+    s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
+  ).filter(s => !STATE.watchlist.some(ws => ws.code === s.code));
+
+  if (results.length === 0) {
+    container.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:0.75rem;text-align:center;">未找到匹配标的（或已在关注列表中）</div>';
+    return;
+  }
+
+  container.innerHTML = results.map(s => `
+    <div class="modal-result" data-code="${s.code}" onclick="selectModalStock('${s.code}', this)">
+      <span class="mod-code">${s.code}</span>
+      <span class="mod-name">${s.name}</span>
+      <span class="mod-market">${s.market === 'A' ? 'A股' : '美股'}</span>
+    </div>
+  `).join('');
+}
+
+function selectModalStock(code, el) {
+  document.querySelectorAll('.modal-result').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+  STATE.selectedModalTicker = ALL_AVAILABLE_STOCKS.find(s => s.code === code);
+  document.getElementById('modalConfirmBtn').disabled = false;
+}
+
+function confirmAddStock() {
+  if (!STATE.selectedModalTicker) return;
+  const s = STATE.selectedModalTicker;
+  STATE.watchlist.push({
+    code: s.code, name: s.name, market: s.market,
+    signal: 'fresh', score: 0, added: new Date().toISOString().slice(5, 10).replace('-', '月') + '日',
+  });
+  closeAddModal();
+  updateTabCounts();
+  renderWatchlistTab('all');
+  renderWatchlistRows(document.getElementById('searchInput')?.value?.trim() || '');
+  updateCoverage();
+  addLog('ok', '已添加关注: ' + s.code + ' ' + s.name);
+}
+
+// ================================================================
+// View 3 & 4: Research
+// ================================================================
+function triggerResearchFromMonitor() {
+  switchView('research');
+  setTimeout(() => triggerResearch(), 200);
+}
+
+function triggerResearchFromResearch() {
+  triggerResearch();
+}
+
+function triggerResearch() {
+  if (STATE.rdRunning) { addLog('warn', 'RD-Agent 研究任务已在运行中'); return; }
+
+  STATE.rdRunning = true;
+  STATE.rdProgress = 0;
+  addLog('blue', '触发 RD-Agent 离线研究任务…');
+
+  // Update sidebar Qlib
+  STATE.qlibStatus = 'researching';
+  const qItem = document.getElementById('qlibSidebar');
+  if (qItem) {
+    qItem.classList.add('busy');
+    qItem.classList.remove('warning');
+    document.getElementById('qlibTag').textContent = '更新中';
+    document.getElementById('qlibTag').style.color = 'var(--accent-blue)';
+  }
+
+  // Update monitor signal card
+  const sigCard = document.getElementById('monitorSignalCard');
+  if (sigCard) {
+    const hdr = sigCard.querySelector('.card-header span:last-child');
+    if (hdr) { hdr.textContent = '⟳ 更新中'; hdr.style.color = 'var(--accent-blue)'; }
+  }
+
+  // Show running task
+  const taskId = 'RD-' + Date.now().toString(36).toUpperCase();
+  const startTime = new Date().toLocaleTimeString();
+  document.getElementById('runningTaskContainer').innerHTML = `
+    <div class="task-history-item" style="border-color:var(--accent-blue);">
+      <div class="task-h-top">
+        <span class="task-h-title" style="color:var(--text-primary);">⟳ CSI300 因子自动挖掘</span>
+        <span class="task-h-status" style="background:var(--accent-blue-bg);color:var(--accent-blue);">运行中</span>
+      </div>
+      <div class="task-h-meta">Task: ${taskId} · 启动: ${startTime} · 引擎: Co-STEER</div>
+      <div style="margin-top:6px;background:var(--bg-input);border-radius:3px;height:4px;overflow:hidden;">
+        <div id="researchProgressBar" style="height:100%;background:var(--accent-blue);width:0%;border-radius:2px;transition:width 0.5s;"></div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--text-muted);text-align:right;margin-top:3px;" id="researchProgressPct">0%</div>
+      <div class="task-h-output" style="font-family:var(--font-mono);font-size:0.65rem;margin-top:8px;line-height:1.8;" id="researchLog">
+        > 启动 Co-STEER 代码生成引擎...<br>
+        > Research 阶段: 阅读金融文献，生成因子假设...
+      </div>
+    </div>`;
+
+  // Simulate progress
+  const stages = [
+    { pct: 8,  log: '> Research 阶段: LLM 阅读文献，提出候选因子假设...', delay: 1200 },
+    { pct: 16, log: '> 生成假设: "日内反转+成交量放大"信号组合', delay: 1500 },
+    { pct: 24, log: '> Development 阶段: Co-STEER 生成因子代码...', delay: 1500 },
+    { pct: 30, log: '> Docker: 构建 local_qlib 隔离执行环境 (DooD)...', delay: 1000 },
+    { pct: 38, log: '> Docker: local_qlib 容器启动，执行因子代码...', delay: 1000 },
+    { pct: 48, log: '> Qlib 回测: CSI300 历史数据 (2008–2020) 验证中...', delay: 1800 },
+    { pct: 56, log: '> 回测结果: IC = 0.072, ICIR = 0.58 · 因子有效', delay: 1200 },
+    { pct: 62, log: '> 迭代优化: 根据回测指标调整因子参数...', delay: 1500 },
+    { pct: 72, log: '> Development: Co-STEER 生成第二个候选因子...', delay: 1800 },
+    { pct: 80, log: '> Qlib 回测: 第二个因子验证 (低估值+高分红+趋势反转)...', delay: 1500 },
+    { pct: 88, log: '> 回测结果: IC = 0.058, Sharpe = 1.4 · 因子有效', delay: 1200 },
+    { pct: 94, log: '> 模型重训练: LightGBM 含新因子重新训练...', delay: 1500 },
+    { pct: 98, log: '> batch_predict: CSI300 全量标的信号生成中...', delay: 1000 },
+  ];
+
+  let idx = 0;
+  function advance() {
+    if (idx < stages.length) {
+      const s = stages[idx];
+      document.getElementById('researchProgressBar').style.width = s.pct + '%';
+      document.getElementById('researchProgressPct').textContent = s.pct + '%';
+      document.getElementById('researchLog').innerHTML += s.log + '<br>';
+      idx++;
+      setTimeout(advance, s.delay);
+    } else {
+      completeResearch(taskId);
+    }
+  }
+  setTimeout(advance, 500);
+}
+
+function completeResearch(taskId) {
+  STATE.rdRunning = false;
+  STATE.rdProgress = 100;
+  STATE.customFactorCount = 2;
+  STATE.qlibStatus = 'fresh';
+  STATE.lastSignalUpdate = new Date();
+
+  // Finalize progress
+  document.getElementById('researchProgressBar').style.width = '100%';
+  document.getElementById('researchProgressPct').textContent = '100%';
+  document.getElementById('researchLog').innerHTML += `
+    > 研究完成: 产出 2 个自定义因子 + 更新模型<br>
+    > signals_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.pkl 已写入信号库<br>
+    > 信号库已刷新，在线评估立即可用<br>`;
+
+  // Update sidebar Qlib state
+  const qItem = document.getElementById('qlibSidebar');
+  if (qItem) {
+    qItem.classList.remove('busy');
+    qItem.classList.remove('warning');
+    document.getElementById('qlibTag').textContent = '就绪';
+    document.getElementById('qlibTag').style.color = '';
+  }
+
+  // Show sidebar custom factors
+  document.getElementById('sidebarCustomFactor1').style.display = 'block';
+  document.getElementById('sidebarCustomFactor2').style.display = 'block';
+
+  // Convert running card to completed
+  setTimeout(() => {
+    document.getElementById('runningTaskContainer').innerHTML = '';
+    // Add to history
+    const hist = document.getElementById('taskHistoryContainer');
+    const now = new Date();
+    const dateStr = now.toISOString().slice(5, 10).replace('-', '月') + '日 ';
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    hist.insertAdjacentHTML('afterbegin', `
+      <div class="task-history-item" style="animation: slideUp 0.3s ease;">
+        <div class="task-h-top">
+          <span class="task-h-title">▸ CSI300 因子自动挖掘</span>
+          <span class="task-h-status done">已完成</span>
+        </div>
+        <div class="task-h-meta">${dateStr}${timeStr} · Task: ${taskId} · 耗时 ~48 min</div>
+        <div class="task-h-output">产出: RD-001（IC 0.072）, RD-002（IC 0.058） · 模型已更新 · 信号库已刷新</div>
+      </div>
+    `);
+
+    // Show custom factors in research view
+    document.getElementById('factorRD1').style.display = 'flex';
+    document.getElementById('factorRD2').style.display = 'flex';
+
+    addLog('ok', 'RD-Agent 研究完成: 2 个自定义因子已入库，信号库已刷新');
+  }, 1200);
+
+  // Reset monitor card
+  setTimeout(() => {
+    const sigCard = document.getElementById('monitorSignalCard');
+    if (sigCard) {
+      const hdr = sigCard.querySelector('.card-header span:last-child');
+      if (hdr) { hdr.textContent = '● 正常'; hdr.style.color = 'var(--accent-green)'; }
+    }
+  }, 1500);
+}
+
+function toggleTimedResearch() {
+  showToast('定时设置功能开发中…（可配置 Cron 定时触发研究任务）');
+}
+
+// ================================================================
+// Logging
+// ================================================================
+function addLog(type, msg) {
+  const log = document.getElementById('systemLog');
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  const cls = type === 'ok' ? 't-ok' : type === 'warn' ? 't-warn' : type === 'blue' ? 't-blue' : '';
+  log.innerHTML += `<div><span class="${cls}">[${time}]</span> ${msg}</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLogs() {
+  document.getElementById('systemLog').innerHTML = '<div><span class="t-ok">[系统]</span> 日志已清空</div>';
+}
+
+// ================================================================
+// Toast
+// ================================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.style.display = 'none', 300); }, 2000);
+}
+
+// ================================================================
+// Init
+// ================================================================
+function init() {
+  renderWatchlistRows();
+  renderWatchlistTab('all');
+  updateCoverage();
+
+  // Close modal on backdrop click
+  document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (e.metaKey || e.ctrlKey) {
+      switch(e.key) {
+        case '1': e.preventDefault(); switchView('evaluate'); break;
+        case '2': e.preventDefault(); switchView('watchlist'); break;
+        case '3': e.preventDefault(); switchView('monitor'); break;
+        case '4': e.preventDefault(); switchView('research'); break;
+      }
+    }
+    if (e.key === 'Escape') {
+      if (document.getElementById('addModal').classList.contains('open')) {
+        closeAddModal();
+      }
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>

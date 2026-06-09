@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEA v3 — Stock Evaluation Aggregator</title>
+    <style>
+        :root {
+            --bg-deep: #080b12;
+            --bg-layer1: #111620;
+            --bg-layer2: #181d2a;
+            --bg-layer3: #1f2536;
+            --text-primary: #e8ecf1;
+            --text-secondary: #94a3b8;
+            --text-muted: #5e6d82;
+            --blue: #3b82f6;
+            --blue-dim: #1e3a5f;
+            --green: #10b981;
+            --green-dim: #0f3d2e;
+            --amber: #f59e0b;
+            --amber-dim: #3d2e0f;
+            --red: #ef4444;
+            --red-dim: #3d0f0f;
+            --purple: #8b5cf6;
+            --purple-dim: #2d1f5e;
+            --cyan: #06b6d4;
+            --border: #252b3b;
+            --border-active: #3b4a6b;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ==================== 左侧边栏 ==================== */
+        .sidebar {
+            width: 264px; min-width: 264px;
+            background: var(--bg-layer1);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .brand {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+        .brand-sub  { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+        .brand-dot {
+            width: 8px; height: 8px; border-radius: 2px;
+            background: var(--blue); box-shadow: 0 0 8px var(--blue);
+        }
+
+        .sidebar-section { padding: 16px 16px 8px; }
+        .sidebar-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); margin-bottom: 10px;
+            padding-bottom: 6px; border-bottom: 1px solid var(--border);
+        }
+
+        .plugin-row {
+            display: flex; align-items: center; padding: 10px 12px;
+            margin: 2px 8px; border-radius: 6px; cursor: pointer;
+            transition: all 0.15s; border: 1px solid transparent; font-size: 0.82rem;
+        }
+        .plugin-row:hover { background: var(--bg-layer2); }
+        .plugin-row.active { background: var(--bg-layer2); border-color: var(--border-active); }
+        .plugin-row.disabled { opacity: 0.45; cursor: default; }
+        .plugin-row.disabled:hover { background: transparent; }
+        .plugin-dot {
+            width: 7px; height: 7px; border-radius: 50%; margin-right: 10px; flex-shrink: 0;
+            background: var(--border);
+        }
+        .plugin-row.active .plugin-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .plugin-row.warning .plugin-dot { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+        .plugin-row.busy .plugin-dot { background: var(--blue); animation: pulse-dot 1.2s infinite; }
+        .plugin-row .p-name { flex: 1; font-size: 0.8rem; }
+        .plugin-row .p-tag {
+            font-size: 0.62rem; padding: 2px 6px; border-radius: 3px;
+            background: var(--bg-layer3); color: var(--text-muted); flex-shrink: 0;
+        }
+        .plugin-row.active .p-tag { color: var(--green); background: var(--green-dim); }
+        .plugin-row.warning .p-tag { color: var(--amber); background: var(--amber-dim); }
+        .plugin-row.busy .p-tag { color: var(--blue); background: var(--blue-dim); }
+
+        @keyframes pulse-dot {
+            0%,100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        /* ==================== 主工作区 ==================== */
+        .main-area {
+            flex: 1; display: flex; flex-direction: column; min-width: 0;
+        }
+
+        .cmd-bar {
+            display: flex; align-items: center;
+            margin: 16px 20px 0;
+            background: var(--bg-layer1); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 10px 16px;
+        }
+        .cmd-prompt { color: var(--green); margin-right: 10px; font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; }
+        .cmd-input {
+            flex: 1; background: transparent; border: none; color: var(--text-primary);
+            font-size: 0.95rem; outline: none; font-family: var(--font-mono);
+        }
+        .cmd-input::placeholder { color: var(--text-muted); }
+        .cmd-hint {
+            font-size: 0.68rem; color: var(--text-muted);
+            background: var(--bg-layer3); padding: 4px 10px; border-radius: 4px;
+            font-family: var(--font-mono);
+        }
+
+        /* ==================== 仪表盘 ==================== */
+        .dashboard {
+            flex: 1; display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px; padding: 16px 20px; overflow: hidden;
+        }
+        .dash-col { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+        /* ==================== 卡片 ==================== */
+        .card {
+            background: var(--bg-layer1); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); overflow: hidden;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 16px; border-bottom: 1px solid var(--border);
+            font-size: 0.82rem; font-weight: 600;
+        }
+        .card-body { padding: 16px; }
+
+        /* ==================== 信号库状态条 ==================== */
+        .signal-status {
+            display: flex; align-items: center; gap: 12px;
+            padding: 13px 16px; border-radius: var(--radius); margin-bottom: 2px;
+            font-size: 0.8rem;
+        }
+        .signal-status.fresh { background: var(--green-dim); border: 1px solid rgba(16,185,129,0.25); }
+        .signal-status.stale { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.25); }
+        .signal-status.empty { background: var(--bg-layer2); border: 1px solid var(--border); }
+        .signal-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .signal-info { flex: 1; line-height: 1.5; }
+        .signal-age { font-size: 0.68rem; color: var(--text-muted); }
+
+        /* ==================== 评估结果 ==================== */
+        .result-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .result-row:last-child { border-bottom: none; }
+        .r-source {
+            width: 140px; font-size: 0.78rem; font-weight: 600;
+            display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+        }
+        .r-source .type-badge {
+            font-size: 0.58rem; padding: 1px 5px; border-radius: 3px;
+            background: var(--bg-layer3); font-weight: 400;
+        }
+        .r-verdict {
+            padding: 4px 10px; border-radius: 4px; font-size: 0.73rem;
+            font-weight: 700; text-transform: uppercase; flex-shrink: 0;
+            font-family: var(--font-mono);
+        }
+        .r-verdict.BUY  { background: var(--green-dim); color: var(--green); }
+        .r-verdict.SELL { background: var(--red-dim);   color: var(--red); }
+        .r-verdict.HOLD { background: var(--amber-dim); color: var(--amber); }
+        .r-verdict.NONE { background: var(--bg-layer3); color: var(--text-muted); }
+        .r-conf {
+            width: 90px; flex-shrink: 0;
+        }
+        .r-conf-label {
+            display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--text-muted);
+        }
+        .r-conf-track {
+            width: 100%; height: 4px; background: var(--bg-layer3); border-radius: 2px; margin-top: 3px;
+        }
+        .r-conf-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+        .r-conf-fill.BUY  { background: var(--green); }
+        .r-conf-fill.SELL { background: var(--red); }
+        .r-conf-fill.HOLD { background: var(--amber); }
+        .r-time {
+            font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0;
+            font-family: var(--font-mono); min-width: 60px; text-align: right;
+        }
+        .r-note {
+            font-size: 0.7rem; color: var(--text-secondary); padding: 4px 0 10px 152px; line-height: 1.5;
+        }
+
+        /* ==================== 综合评分 ==================== */
+        .agg-score {
+            display: flex; align-items: center; gap: 16px; padding: 14px 16px;
+            background: var(--bg-layer2); border-radius: var(--radius); margin: 0 16px 16px;
+        }
+        .agg-gauge {
+            width: 56px; height: 56px; border-radius: 50%;
+            border: 3px solid var(--border); display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1.1rem; flex-shrink: 0; font-family: var(--font-mono);
+            background: var(--bg-layer1);
+        }
+        .agg-info { font-size: 0.78rem; line-height: 1.5; }
+        .consensus-strong   { color: var(--green); }
+        .consensus-moderate { color: var(--amber); }
+        .consensus-diverged { color: var(--red); }
+
+        /* ==================== 数据处理流水线 ==================== */
+        .pipeline { display: flex; flex-direction: column; gap: 0; }
+        .pipe-node {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 6px; font-size: 0.78rem;
+            border-left: 3px solid var(--border);
+            background: var(--bg-layer2); margin-bottom: 1px;
+            transition: all 0.3s;
+        }
+        .pipe-node.success  { border-left-color: var(--green); }
+        .pipe-node.running  { border-left-color: var(--blue); background: var(--blue-dim); }
+        .pipe-node.pending  { opacity: 0.45; }
+        .pipe-icon {
+            width: 28px; height: 28px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; flex-shrink: 0; background: var(--bg-layer3);
+        }
+        .pipe-arrow {
+            text-align: center; color: var(--text-muted); font-size: 0.55rem;
+            padding: 2px 0; padding-left: 24px;
+        }
+
+        /* ==================== 因子库列表 ==================== */
+        .factor-list { display: flex; flex-direction: column; gap: 8px; }
+        .factor-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: var(--bg-layer2); border-radius: 6px;
+            border: 1px solid var(--border); font-size: 0.78rem;
+            transition: all 0.15s;
+        }
+        .factor-name { font-weight: 600; }
+        .factor-desc { font-size: 0.68rem; color: var(--text-muted); }
+        .factor-badge {
+            font-size: 0.65rem; padding: 3px 8px; border-radius: 12px;
+            font-weight: 600; flex-shrink: 0;
+        }
+        .factor-badge.builtin { background: var(--bg-layer3); color: var(--text-secondary); border: 1px solid var(--border); }
+        .factor-badge.custom  { background: var(--purple-dim); color: #c4b5fd; }
+
+        /* ==================== 任务卡片 ==================== */
+        .task-card {
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 14px; margin-bottom: 10px; background: var(--bg-layer2);
+            transition: border-color 0.3s;
+        }
+        .task-card.running { border-color: var(--blue); }
+        .task-top {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+        .task-name {
+            font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
+        }
+        .task-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .task-dot.running { background: var(--blue); animation: pulse-dot 1.2s infinite; }
+        .task-dot.done    { background: var(--green); }
+        .task-progress-bg {
+            width: 100%; height: 4px; background: var(--bg-layer3); border-radius: 2px;
+            overflow: hidden; margin: 10px 0;
+        }
+        .task-progress-fill { height: 100%; background: var(--blue); border-radius: 2px; transition: width 0.5s; }
+        .task-log {
+            font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);
+            line-height: 1.7; margin-top: 8px; max-height: 200px; overflow-y: auto;
+        }
+
+        /* ==================== 按钮 ==================== */
+        .btn {
+            padding: 6px 14px; border-radius: 5px; font-size: 0.72rem;
+            cursor: pointer; font-family: inherit; border: 1px solid var(--border);
+            background: var(--bg-layer3); color: var(--text-primary);
+            transition: all 0.15s; white-space: nowrap;
+        }
+        .btn:hover { background: var(--bg-layer2); border-color: var(--border-active); }
+        .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .btn.primary:hover { background: #2563eb; }
+        .btn.ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+        .btn.ghost:hover { color: var(--text-primary); background: var(--bg-layer3); }
+
+        /* ==================== 终端日志 ==================== */
+        .mini-terminal {
+            background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 10px 14px;
+            font-family: var(--font-mono); font-size: 0.7rem;
+            color: var(--text-muted); max-height: 130px; overflow-y: auto;
+        }
+        .mini-terminal .t-line { margin-bottom: 2px; }
+        .mini-terminal .t-info { color: var(--text-secondary); }
+        .mini-terminal .t-ok   { color: var(--green); }
+        .mini-terminal .t-warn { color: var(--amber); }
+        .mini-terminal .t-blue { color: var(--blue); }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        @media (max-width: 1100px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        .empty-state { text-align:center; padding:30px; color:var(--text-muted); font-size:0.82rem; }
+        .empty-state .hint { font-size:0.7rem; margin-top:6px; }
+    </style>
+</head>
+<body>
+
+<!-- ============ 左侧：服务面板 ============ -->
+<aside class="sidebar">
+    <div class="brand">
+        <div class="brand-name">
+            <span class="brand-dot"></span> SEA Engine
+        </div>
+        <div class="brand-sub">Stock Evaluation Aggregator v3.0</div>
+    </div>
+
+    <!-- 在线评估插件 -->
+    <div class="sidebar-section">
+        <div class="sidebar-label">在线评估服务</div>
+        <div class="plugin-row active" data-plugin="ta-cn" onclick="togglePlugin(this, 'ta-cn')">
+            <span class="plugin-dot"></span>
+            <span class="p-name">TradingAgents-CN</span>
+            <span class="p-tag">A股</span>
+        </div>
+        <div class="plugin-row active" data-plugin="ta" onclick="togglePlugin(this, 'ta')">
+            <span class="plugin-dot"></span>
+            <span class="p-name">TradingAgents</span>
+            <span class="p-tag">美股</span>
+        </div>
+        <div class="plugin-row active" data-plugin="qlib" id="qlibSidebar" onclick="togglePlugin(this, 'qlib')">
+            <span class="plugin-dot"></span>
+            <span class="p-name">Qlib 量化信号</span>
+            <span class="p-tag" id="qlibTag">就绪</span>
+        </div>
+        <div class="plugin-row disabled" data-plugin="finrobot">
+            <span class="plugin-dot"></span>
+            <span class="p-name">FinRobot</span>
+            <span class="p-tag">未启用</span>
+        </div>
+    </div>
+
+    <!-- 离线研究任务 -->
+    <div class="sidebar-section" style="margin-top: 8px;">
+        <div class="sidebar-label">离线研究任务</div>
+        <div class="plugin-row" id="rdSidebar" onclick="triggerRDResearch()">
+            <span class="plugin-dot"></span>
+            <span class="p-name">RD-Agent</span>
+            <span class="p-tag" id="rdTag">空闲</span>
+        </div>
+    </div>
+
+    <!-- 内置因子库 -->
+    <div class="sidebar-section">
+        <div class="sidebar-label">因子库</div>
+        <div style="padding: 0 12px; font-size: 0.68rem; color: var(--text-muted); line-height: 2;">
+            <div>▸ Alpha158 <span style="color:var(--text-muted);">· 158因子</span></div>
+            <div>▸ Alpha360 <span style="color:var(--text-muted);">· 序列特征</span></div>
+            <div>▸ Alpha101 <span style="color:var(--text-muted);">· WorldQuant</span></div>
+        </div>
+    </div>
+</aside>
+
+<!-- ============ 主工作区 ============ -->
+<main class="main-area">
+    <!-- 命令栏 -->
+    <div class="cmd-bar">
+        <span class="cmd-prompt">SEA&gt;</span>
+        <input type="text" id="cmdInput" class="cmd-input"
+               placeholder="输入标的代码（600519.SS / AAPL）或输入 sea research trigger"
+               autocomplete="off" onkeypress="handleKey(event)">
+        <span class="cmd-hint">⏎ 执行</span>
+    </div>
+
+    <!-- 双列仪表盘 -->
+    <div class="dashboard">
+        <!-- ===== 左列：评估结果 + 流水线 ===== -->
+        <div class="dash-col" id="leftCol">
+            <!-- 信号库状态 -->
+            <div class="signal-status fresh" id="signalStatusBar">
+                <span class="signal-icon">▣</span>
+                <div class="signal-info">
+                    <strong>Qlib 本地信号库</strong> · CSI300 成分股全覆盖<br>
+                    <span class="signal-age" id="signalAgeText">最近更新：2 小时前 · 状态正常</span>
+                </div>
+                <button class="btn ghost" onclick="triggerRDResearch()" title="手动触发离线研究更新信号">刷新</button>
+            </div>
+
+            <!-- 评估结果 -->
+            <div class="card">
+                <div class="card-header">
+                    评估结果
+                    <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;" id="evalTarget">等待输入…</span>
+                </div>
+                <div class="card-body" id="resultsContainer">
+                    <div class="empty-state">
+                        在上方输入标的代码开始评估<br>
+                        <span class="hint">例：600519.SS（贵州茅台）、AAPL（Apple Inc.）</span>
+                    </div>
+                </div>
+                <div id="aggPanel" style="display:none;">
+                    <div class="agg-score">
+                        <div class="agg-gauge" id="aggGauge">--</div>
+                        <div class="agg-info">
+                            <div id="aggConsensus" style="font-weight:600;"></div>
+                            <div style="font-size:0.7rem;color:var(--text-muted);" id="aggSummary"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据处理流水线 -->
+            <div class="card">
+                <div class="card-header">
+                    数据处理流水线
+                    <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">Qlib pipeline</span>
+                </div>
+                <div class="card-body">
+                    <div class="pipeline" id="pipelineView">
+                        <div class="pipe-node success">
+                            <span class="pipe-icon">⬇</span>
+                            <div>
+                                <strong>数据加载</strong><br>
+                                <span style="font-size:0.68rem;color:var(--text-muted);">CSI300 日线 · 3.2 GB</span>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow">▼</div>
+                        <div class="pipe-node success">
+                            <span class="pipe-icon">φ</span>
+                            <div>
+                                <strong>特征工程</strong><br>
+                                <span style="font-size:0.68rem;color:var(--text-muted);">Alpha158 基准因子 + 2 个自定义因子</span>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow">▼</div>
+                        <div class="pipe-node success">
+                            <span class="pipe-icon">M</span>
+                            <div>
+                                <strong>模型训练</strong><br>
+                                <span style="font-size:0.68rem;color:var(--text-muted);">LightGBM · IC 0.045 · Sharpe 1.2</span>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow">▼</div>
+                        <div class="pipe-node success" id="signalNode">
+                            <span class="pipe-icon">✓</span>
+                            <div>
+                                <strong>信号就绪</strong><br>
+                                <span style="font-size:0.68rem;color:var(--text-muted);">300 标的全量覆盖 · 可查询</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 右列：因子库 + 研究任务 + 日志 ===== -->
+        <div class="dash-col" id="rightCol">
+            <!-- 因子库 -->
+            <div class="card">
+                <div class="card-header">
+                    因子库管理
+                    <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">决定模型预测能力的输入变量集合</span>
+                </div>
+                <div class="card-body">
+                    <div class="factor-list">
+                        <div class="factor-item">
+                            <div>
+                                <div class="factor-name">Alpha158 基准因子集</div>
+                                <div class="factor-desc">158 个经典量化因子（动量、均线、波动率…）</div>
+                            </div>
+                            <span class="factor-badge builtin">内置</span>
+                        </div>
+                        <div class="factor-item">
+                            <div>
+                                <div class="factor-name">Alpha360 序列特征</div>
+                                <div class="factor-desc">60 天原始行情序列 · 适配深度学习模型</div>
+                            </div>
+                            <span class="factor-badge builtin">内置</span>
+                        </div>
+                        <div class="factor-item">
+                            <div>
+                                <div class="factor-name">Alpha101 因子集</div>
+                                <div class="factor-desc">WorldQuant 公开的 101 个量化公式</div>
+                            </div>
+                            <span class="factor-badge builtin">内置</span>
+                        </div>
+                        <div class="factor-item" id="customFactor1" style="display:none;">
+                            <div>
+                                <div class="factor-name">RD-001 自定义因子</div>
+                                <div class="factor-desc">日内反转+放量信号 · IC 0.072</div>
+                            </div>
+                            <span class="factor-badge custom">RD-Agent</span>
+                        </div>
+                        <div class="factor-item" id="customFactor2" style="display:none;">
+                            <div>
+                                <div class="factor-name">RD-002 自定义因子</div>
+                                <div class="factor-desc">低估值+高分红+趋势反转 · IC 0.058</div>
+                            </div>
+                            <span class="factor-badge custom">RD-Agent</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 离线研究任务 -->
+            <div class="card">
+                <div class="card-header">
+                    RD-Agent 离线研究
+                    <button class="btn primary" style="font-size:0.65rem; padding:4px 10px;" onclick="triggerRDResearch()">
+                        启动研究
+                    </button>
+                </div>
+                <div class="card-body" id="taskContainer">
+                    <div class="empty-state" id="noTaskMsg" style="padding:16px;">
+                        当前无运行中的研究任务<br>
+                        <span class="hint">RD-Agent 空闲 · 点击"启动研究"执行因子自动挖掘</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统日志 -->
+            <div class="card">
+                <div class="card-header">系统日志</div>
+                <div class="card-body" style="padding: 0 16px 16px;">
+                    <div class="mini-terminal" id="miniTerm">
+                        <div class="t-line"><span class="t-info">[SEA]</span> Engine v3.0 初始化完成</div>
+                        <div class="t-line"><span class="t-ok">[Qlib]</span> 信号库连接正常 · CSI300 300/300 标的覆盖</div>
+                        <div class="t-line"><span class="t-info">[TA-CN]</span> TradingAgents-CN 就绪</div>
+                        <div class="t-line"><span class="t-info">[TA]</span> TradingAgents 就绪</div>
+                        <div class="t-line"><span class="t-info">[RD]</span> RD-Agent 就绪，等待触发</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+// ==================== 状态管理 ====================
+const STATE = {
+    qlibStatus: 'fresh',       // fresh | stale | researching
+    lastSignalUpdate: new Date(Date.now() - 2 * 3600 * 1000),
+    rdRunning: false,
+    rdProgress: 0,
+    rdInterval: null,
+    customFactorCount: 0,
+    activePlugins: new Set(['ta-cn', 'ta', 'qlib']),
+};
+
+// ==================== 模拟数据 ====================
+const PLUGIN_RESULTS = {
+    'ta-cn': {
+        name: 'TradingAgents-CN',
+        direction: 'BUY', confidence: 0.82,
+        summary: '多智能体共识看多。基本面：营收超预期 25%；情绪面：市场情绪积极；风险面：下行风险可控。综合分析建议买入。',
+        latency: 45200,
+    },
+    'ta': {
+        name: 'TradingAgents',
+        direction: 'HOLD', confidence: 0.55,
+        summary: '全球宏观不确定性偏高，SEC 财报无明显催化剂，技术面提示短期超买。建议暂时观望。',
+        latency: 38100,
+    },
+    'qlib': {
+        name: 'Qlib 量化信号',
+        direction: 'HOLD', confidence: 0.61,
+        summary: 'Alpha = +0.012，因子 IC = 0.045，预测 20 日收益率 +1.2%。基于 LightGBM 模型，输入含 160 个因子。',
+        latency: 38,
+    },
+};
+
+// ==================== 键盘交互 ====================
+function handleKey(e) {
+    if (e.key !== 'Enter') return;
+    const input = document.getElementById('cmdInput').value.trim();
+    if (!input) return;
+    document.getElementById('cmdInput').value = '';
+
+    if (input.startsWith('sea research trigger')) {
+        triggerRDResearch();
+    } else {
+        runEvaluation(input);
+    }
+}
+
+// ==================== 插件切换 ====================
+function togglePlugin(el, pluginId) {
+    if (el.classList.contains('disabled')) return;
+    el.classList.toggle('active');
+    if (el.classList.contains('active')) {
+        STATE.activePlugins.add(pluginId);
+    } else {
+        STATE.activePlugins.delete(pluginId);
+    }
+}
+
+// ==================== 执行评估 ====================
+function runEvaluation(ticker) {
+    if (STATE.activePlugins.size === 0) {
+        logTerm('warn', '没有启用的评估服务，请在左侧面板激活至少一个插件');
+        return;
+    }
+
+    logTerm('info', `开始评估: ticker="${ticker}", date=latest`);
+    document.getElementById('evalTarget').textContent = `标的: ${ticker.toUpperCase()}`;
+
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-muted);">调度中…</div>';
+
+    const results = [];
+    const pluginOrder = [];
+
+    STATE.activePlugins.forEach(pid => {
+        const data = PLUGIN_RESULTS[pid];
+        if (!data) return;
+        pluginOrder.push(pid);
+
+        if (pid === 'qlib' && STATE.qlibStatus === 'researching') {
+            setTimeout(() => {
+                results.push({
+                    ...data,
+                    direction: 'NONE', confidence: 0,
+                    summary: 'RD-Agent 正在更新因子库及模型，当前暂无可用信号。请等待离线任务完成。',
+                    latency: 3,
+                });
+                tryRenderResults();
+            }, 30);
+        } else if (pid === 'qlib') {
+            setTimeout(() => {
+                let d = { ...data };
+                if (STATE.qlibStatus === 'stale') {
+                    d.summary += ' ⚠ 信号已过期，建议触发离线研究更新。';
+                }
+                results.push(d);
+                logTerm('ok', `${data.name} 查询完成 · ${data.latency}ms（本地信号库命中）`);
+                tryRenderResults();
+            }, 30 + Math.random() * 60);
+        } else {
+            logTerm('info', `${data.name} 多智能体推理中…`);
+            setTimeout(() => {
+                results.push(data);
+                logTerm('ok', `${data.name} 评估完成 · ${(data.latency/1000).toFixed(1)}s`);
+                tryRenderResults();
+            }, 1500 + Math.random() * 1000);
+        }
+    });
+
+    function tryRenderResults() {
+        if (results.length < pluginOrder.length) return;
+        results.sort((a, b) => {
+            const ia = pluginOrder.indexOf(
+                Object.keys(PLUGIN_RESULTS).find(k => PLUGIN_RESULTS[k].name === a.name)
+            );
+            const ib = pluginOrder.indexOf(
+                Object.keys(PLUGIN_RESULTS).find(k => PLUGIN_RESULTS[k].name === b.name)
+            );
+            return ia - ib;
+        });
+        renderAllResults(results, ticker);
+    }
+}
+
+function renderAllResults(results, ticker) {
+    const container = document.getElementById('resultsContainer');
+
+    const dirCN = { BUY: '买入', SELL: '卖出', HOLD: '持有', NONE: '不可用' };
+
+    let html = '';
+    results.forEach(r => {
+        const confPct = (r.confidence * 100).toFixed(0);
+        const timeStr = r.latency < 1000 ? `${r.latency} ms` : `${(r.latency/1000).toFixed(1)} s`;
+        const isLLM = r.name.includes('TradingAgents');
+        html += `
+        <div class="result-row">
+            <div class="r-source">
+                ${r.name}
+                <span class="type-badge">${isLLM ? 'LLM' : 'ML'}</span>
+            </div>
+            <span class="r-verdict ${r.direction}">${dirCN[r.direction] || '--'}</span>
+            <div class="r-conf">
+                <div class="r-conf-label"><span>置信度</span><span>${confPct}%</span></div>
+                <div class="r-conf-track"><div class="r-conf-fill ${r.direction}" style="width:${confPct}%"></div></div>
+            </div>
+            <span class="r-time">${timeStr}</span>
+        </div>
+        <div class="r-note">${r.summary}</div>`;
+    });
+
+    container.innerHTML = html;
+
+    // 综合评分
+    const valid = results.filter(r => r.direction !== 'NONE');
+    if (valid.length >= 2) {
+        const scoreMap = { BUY: 1, HOLD: 0, SELL: -1 };
+        let wSum = 0, wTotal = 0;
+        valid.forEach(r => { const w = r.confidence; wSum += scoreMap[r.direction] * w; wTotal += w; });
+        const agg = wSum / wTotal;
+        const aggScore = (agg * 100).toFixed(0);
+
+        const dirs = valid.map(r => r.direction);
+        const buys = dirs.filter(d => d === 'BUY').length;
+        const holds = dirs.filter(d => d === 'HOLD').length;
+        const sells = dirs.filter(d => d === 'SELL').length;
+        const total = dirs.length;
+        const maxCount = Math.max(buys, holds, sells);
+
+        let level, cls;
+        if (maxCount === total) { level = '强共识'; cls = 'consensus-strong'; }
+        else if (maxCount > total * 0.6) { level = '中等共识'; cls = 'consensus-moderate'; }
+        else { level = '意见分歧'; cls = 'consensus-diverged'; }
+
+        const gColor = agg > 0.15 ? 'var(--green)' : agg < -0.15 ? 'var(--red)' : 'var(--amber)';
+        const g = document.getElementById('aggGauge');
+        g.style.borderColor = gColor; g.style.color = gColor;
+        g.textContent = agg > 0 ? `+${aggScore}` : aggScore;
+        document.getElementById('aggConsensus').innerHTML = `<span class="${cls}">共识度：${level}</span>`;
+        document.getElementById('aggSummary').textContent = `${buys}买 / ${holds}持 / ${sells}卖`;
+        document.getElementById('aggPanel').style.display = 'block';
+    } else {
+        document.getElementById('aggPanel').style.display = 'none';
+    }
+}
+
+// ==================== RD-Agent 离线研究 ====================
+function triggerRDResearch() {
+    if (STATE.rdRunning) {
+        logTerm('warn', 'RD-Agent 研究任务已在运行中');
+        return;
+    }
+
+    STATE.rdRunning = true;
+    STATE.rdProgress = 0;
+
+    logTerm('blue', '触发 RD-Agent 离线研究任务…');
+    logTerm('info', 'POST /research/trigger → 启动 Co-STEER 代码生成引擎');
+
+    // 侧边栏状态
+    const rdItem = document.getElementById('rdSidebar');
+    rdItem.classList.add('busy');
+    rdItem.querySelector('.plugin-dot').classList.add('busy');
+    document.getElementById('rdTag').textContent = '运行中';
+    document.getElementById('rdTag').style.color = 'var(--blue)';
+
+    STATE.qlibStatus = 'researching';
+    const qItem = document.getElementById('qlibSidebar');
+    qItem.classList.add('busy');
+    qItem.classList.remove('warning');
+    document.getElementById('qlibTag').textContent = '更新中';
+    document.getElementById('qlibTag').style.color = 'var(--blue)';
+
+    // 信号库状态条
+    const sBar = document.getElementById('signalStatusBar');
+    sBar.className = 'signal-status stale';
+    sBar.querySelector('.signal-icon').textContent = '⟳';
+    sBar.querySelector('strong').textContent = 'Qlib 信号库 · 离线更新中';
+    document.getElementById('signalAgeText').textContent = 'RD-Agent 正在执行因子挖掘与模型重训练，预计 30–60 分钟…';
+
+    // 流水线节点
+    const sNode = document.getElementById('signalNode');
+    sNode.className = 'pipe-node running';
+    sNode.querySelector('strong').textContent = '更新中 · RD-Agent 研究';
+
+    // 任务卡片
+    document.getElementById('noTaskMsg').style.display = 'none';
+    const taskId = 'RD-' + Date.now().toString(36).toUpperCase();
+    const startTime = new Date().toLocaleTimeString();
+
+    document.getElementById('taskContainer').innerHTML = `
+        <div class="task-card running" id="taskCard">
+            <div class="task-top">
+                <span class="task-name">
+                    <span class="task-dot running"></span>
+                    RD-Agent · CSI300 因子自动挖掘
+                </span>
+                <span style="font-size:0.68rem;color:var(--blue);">运行中</span>
+            </div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;">
+                Task: ${taskId} · 启动: ${startTime} · 引擎: Co-STEER
+            </div>
+            <div class="task-progress-bg">
+                <div class="task-progress-fill" id="taskProgressBar" style="width:0%;"></div>
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);text-align:right;margin-top:2px;" id="taskProgressPct">0%</div>
+            <div class="task-log" id="taskLog">
+                > 启动 Co-STEER 代码生成引擎...<br>
+                > Research 阶段: 阅读金融文献，生成因子假设...
+            </div>
+        </div>`;
+
+    // 模拟进度
+    const stages = [
+        { pct: 8,  log: '> Research 阶段: LLM 阅读文献，提出候选因子假设...', delay: 2000 },
+        { pct: 16, log: '> 生成假设: "日内反转+成交量放大"信号组合', delay: 2500 },
+        { pct: 24, log: '> Development 阶段: Co-STEER 生成因子代码...', delay: 2500 },
+        { pct: 30, log: '> Docker: 构建 local_qlib:latest 隔离执行环境 (DooD)...', delay: 1800 },
+        { pct: 38, log: '> Docker: local_qlib 容器启动，执行因子代码...', delay: 1500 },
+        { pct: 48, log: '> Qlib 回测: CSI300 历史数据 (2008–2020) 验证中...', delay: 3000 },
+        { pct: 56, log: '> 回测结果: IC = 0.072, ICIR = 0.58 · 因子有效', delay: 2000 },
+        { pct: 62, log: '> 迭代优化: 根据回测指标调整因子参数...', delay: 2500 },
+        { pct: 72, log: '> Development: Co-STEER 生成第二个候选因子...', delay: 3000 },
+        { pct: 80, log: '> Qlib 回测: 第二个因子验证 (低估值+高分红+趋势反转)...', delay: 2500 },
+        { pct: 88, log: '> 回测结果: IC = 0.058, Sharpe = 1.4 · 因子有效', delay: 2000 },
+        { pct: 94, log: '> 模型重训练: LightGBM 含新因子重新训练...', delay: 2500 },
+        { pct: 98, log: '> batch_predict: CSI300 全量标的信号生成中...', delay: 2000 },
+    ];
+
+    let idx = 0;
+    function advance() {
+        if (idx < stages.length) {
+            const s = stages[idx];
+            STATE.rdProgress = s.pct;
+            document.getElementById('taskProgressBar').style.width = s.pct + '%';
+            document.getElementById('taskProgressPct').textContent = s.pct + '%';
+            document.getElementById('taskLog').innerHTML += s.log + '<br>';
+            document.getElementById('taskLog').scrollTop = document.getElementById('taskLog').scrollHeight;
+            idx++;
+            STATE.rdInterval = setTimeout(advance, s.delay);
+        } else {
+            completeResearch(taskId);
+        }
+    }
+    STATE.rdInterval = setTimeout(advance, 800);
+}
+
+function completeResearch(taskId) {
+    STATE.rdRunning = false;
+    STATE.rdProgress = 100;
+    STATE.customFactorCount = 2;
+    STATE.qlibStatus = 'fresh';
+    STATE.lastSignalUpdate = new Date();
+
+    document.getElementById('taskProgressBar').style.width = '100%';
+    document.getElementById('taskProgressPct').textContent = '100%';
+    document.getElementById('taskLog').innerHTML += `
+        > 研究完成: 产出 2 个自定义因子 + 更新模型<br>
+        > signals_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.pkl 已写入信号库<br>
+        > 信号库已刷新，在线评估立即可用<br>`;
+
+    const card = document.getElementById('taskCard');
+    card.classList.remove('running');
+    card.querySelector('.task-dot').classList.remove('running');
+    card.querySelector('.task-dot').classList.add('done');
+    const statusEl = card.querySelector('.task-top span:last-child');
+    statusEl.textContent = '已完成';
+    statusEl.style.color = 'var(--green)';
+
+    // 恢复侧边栏
+    const rdItem = document.getElementById('rdSidebar');
+    rdItem.classList.remove('busy');
+    rdItem.querySelector('.plugin-dot').classList.remove('busy');
+    document.getElementById('rdTag').textContent = '空闲';
+    document.getElementById('rdTag').style.color = '';
+
+    const qItem = document.getElementById('qlibSidebar');
+    qItem.classList.remove('busy');
+    qItem.classList.remove('warning');
+    document.getElementById('qlibTag').textContent = '就绪';
+    document.getElementById('qlibTag').style.color = 'var(--green)';
+
+    // 信号库状态条
+    const sBar = document.getElementById('signalStatusBar');
+    sBar.className = 'signal-status fresh';
+    sBar.querySelector('.signal-icon').textContent = '▣';
+    sBar.querySelector('strong').textContent = 'Qlib 本地信号库';
+    document.getElementById('signalAgeText').textContent = '最近更新：刚刚 · 状态正常 · 含 2 个自定义因子';
+
+    // 流水线节点
+    const sNode = document.getElementById('signalNode');
+    sNode.className = 'pipe-node success';
+    sNode.querySelector('strong').textContent = '信号就绪';
+
+    // 显示新因子
+    document.getElementById('customFactor1').style.display = 'flex';
+    document.getElementById('customFactor2').style.display = 'flex';
+
+    logTerm('ok', 'RD-Agent 研究完成: 2 个自定义因子已入库，信号库已刷新');
+
+    // 若当前有评估结果，自动刷新
+    const targetEl = document.getElementById('evalTarget');
+    if (targetEl.textContent.includes('600519') || targetEl.textContent.includes('AAPL')) {
+        const ticker = targetEl.textContent.includes('600519') ? '600519.SS' : 'AAPL';
+        setTimeout(() => runEvaluation(ticker), 500);
+    }
+}
+
+// ==================== 终端日志 ====================
+function logTerm(type, msg) {
+    const term = document.getElementById('miniTerm');
+    const cls = type === 'ok' ? 't-ok' : type === 'warn' ? 't-warn' : type === 'blue' ? 't-blue' : 't-info';
+    const time = new Date().toLocaleTimeString();
+    term.innerHTML += `<div class="t-line"><span class="${cls}">[${time}]</span> ${msg}</div>`;
+    term.scrollTop = term.scrollHeight;
+}
+
+// 初始化
+document.getElementById('cmdInput').focus();
+</script>
+</body>
+</html>

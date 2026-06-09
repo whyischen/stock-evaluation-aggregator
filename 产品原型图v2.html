@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEA - Stock Evaluation Aggregator</title>
+    <style>
+        :root {
+            --bg-dark: #0f111a;
+            --bg-panel: #1a1c29;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --border: #2e3446;
+            --font-family: 'Consolas', 'Monaco', 'Courier New', monospace, 'Microsoft YaHei';
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 20px 20px 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .plugin-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .plugin-item:hover { background-color: rgba(255,255,255,0.05); }
+        .plugin-item.active { border-left-color: var(--accent-blue); background-color: rgba(59, 130, 246, 0.1); }
+
+        .plugin-indicator {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 12px;
+            background-color: var(--border);
+        }
+        .plugin-item.active .plugin-indicator { background-color: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+        .plugin-item[data-status="stale"] .plugin-indicator { background-color: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+        .plugin-item[data-status="researching"] .plugin-indicator { background-color: var(--accent-blue); animation: pulse 1s infinite; }
+
+        .plugin-info { flex: 1; }
+        .plugin-info .name { font-size: 0.9rem; }
+        .plugin-info .meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 30px;
+            background-image: radial-gradient(circle at top right, #1a1c29 0%, transparent 40%);
+        }
+
+        .cmd-bar {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+
+        .cmd-prompt { color: var(--accent-green); margin-right: 12px; font-weight: bold; }
+        .cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            font-family: var(--font-family);
+        }
+        .cmd-input::placeholder { color: #475569; }
+
+        .terminal {
+            background-color: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            min-height: 100px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+        .term-line { margin-bottom: 4px; }
+        .term-sys { color: var(--accent-blue); }
+        .term-err { color: var(--accent-amber); }
+        .term-succ { color: var(--accent-green); }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .result-card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .plugin-title { font-weight: bold; font-size: 1.1rem; }
+        .latency { font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;}
+
+        .verdict {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .verdict.buy { background-color: rgba(16, 185, 129, 0.1); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .verdict.sell { background-color: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .verdict.hold { background-color: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+        .verdict.none { background-color: rgba(255, 255, 255, 0.1); color: var(--text-muted); border: 1px solid var(--text-muted); }
+
+        .confidence { margin: 15px 0; }
+        .conf-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-muted); }
+        .conf-bar-bg { width: 100%; height: 6px; background-color: var(--border); border-radius: 3px; overflow: hidden; }
+        .conf-bar { height: 100%; background-color: var(--accent-blue); transition: width 0.5s ease; }
+
+        .summary { font-size: 0.85rem; line-height: 1.5; color: #cbd5e1; }
+
+        /* Qlib Special Action Box */
+        .stale-alert {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+        }
+        .btn-trigger {
+            width: 100%;
+            padding: 8px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+        .btn-trigger:hover { background: rgba(59, 130, 246, 0.2); }
+
+        /* RIGHT PANEL */
+        .right-panel {
+            width: 320px;
+            background-color: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-tab {
+            flex: 1;
+            text-align: center;
+            padding: 15px 0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .panel-tab.active {
+            color: var(--text-main);
+            border-bottom-color: var(--accent-blue);
+            background-color: rgba(255,255,255,0.02);
+        }
+        .badge { background: var(--accent-blue); color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 0.65rem; margin-left: 4px; }
+
+        .panel-content { padding: 20px; flex: 1; overflow-y: auto; }
+        
+        /* TASK ITEM */
+        .task-item {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.2);
+        }
+        .task-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px; }
+        .task-title { color: var(--accent-blue); font-weight: bold; }
+        .task-status { font-size: 0.75rem; }
+        .task-meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; }
+        .task-progress-bg { width: 100%; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .task-progress { height: 100%; background: var(--accent-blue); border-radius: 2px; animation: pulse 1.5s infinite; }
+        .task-detail { font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 左侧边栏 -->
+    <aside class="sidebar">
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            SEA Engine
+        </div>
+        
+        <div class="section-title">实时分析插件 (Active)</div>
+        <div class="plugin-item active" onclick="togglePlugin(this)">
+            <span class="plugin-indicator"></span>
+            <div class="plugin-info">
+                <div class="name">TradingAgents</div>
+                <div class="meta">美股基本面/情绪预判</div>
+            </div>
+        </div>
+        <div class="plugin-item active" onclick="togglePlugin(this)">
+            <span class="plugin-indicator"></span>
+            <div class="plugin-info">
+                <div class="name">TradingAgents-CN</div>
+                <div class="meta">A股基本面/情绪预判</div>
+            </div>
+        </div>
+        <div class="plugin-item" onclick="togglePlugin(this)">
+            <span class="plugin-indicator"></span>
+            <div class="plugin-info">
+                <div class="name">FinRobot</div>
+                <div class="meta">深度财报解析 (休眠)</div>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top: 10px;">离线/在线复合插件</div>
+        <!-- Qlib + RD-Agent 复合体 -->
+        <div class="plugin-item active" id="qlibPluginItem" data-status="stale" onclick="togglePlugin(this)">
+            <span class="plugin-indicator"></span>
+            <div class="plugin-info">
+                <div class="name">Qlib 量化信号</div>
+                <div class="meta" id="qlibMetaText" style="color:var(--accent-amber)">依赖: RD-Agent (因子库已过期)</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主工作区 -->
+    <main class="main-content">
+        <div class="cmd-bar">
+            <span class="cmd-prompt">SEA&gt;</span>
+            <input type="text" id="cmdInput" class="cmd-input" placeholder="输入股票代码 (如 600519.SS) 或尝试: sea research trigger --market CSI300" autocomplete="off" onkeypress="handleKey(event)">
+        </div>
+
+        <div class="terminal" id="terminal">
+            <div class="term-line"><span class="term-sys">[System]</span> SEA Engine v2.0 Initialization Complete.</div>
+            <div class="term-line"><span class="term-sys">[System]</span> Loaded plugins: TA, TA-CN, Qlib.</div>
+            <div class="term-line"><span class="term-sys">[System]</span> Listening for commands...</div>
+        </div>
+
+        <div class="results-grid" id="resultsGrid">
+            <!-- 评估结果将由 JS 动态注入于此 -->
+        </div>
+    </main>
+
+    <!-- 右侧面板 -->
+    <aside class="right-panel">
+        <div class="panel-tabs">
+            <div class="panel-tab active" data-tab="history" onclick="switchPanelTab('history')">系统状态</div>
+            <div class="panel-tab" data-tab="tasks" onclick="switchPanelTab('tasks')">后台任务 <span class="badge" id="taskBadge" style="display:none;">1</span></div>
+        </div>
+        <div class="panel-content" id="panelContent">
+            <!-- 默认显示系统状态 -->
+            <div id="tab-history">
+                <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
+                    <p>Docker Compose Network: <span style="color:var(--accent-green)">Online</span></p>
+                    <p>API Router Port: <span style="color:var(--accent-blue)">8080</span></p>
+                    <hr style="border:none; border-top:1px solid var(--border); margin: 10px 0;">
+                    <p><strong>挂载存储卷:</strong></p>
+                    <p>• market_cache_vol: 124 MB</p>
+                    <p>• qlib_data_vol: 5.2 GB</p>
+                    <p>• rdagent_workspace: 45 MB</p>
+                </div>
+            </div>
+
+            <!-- 后台任务面板 (默认隐藏) -->
+            <div id="tab-tasks" style="display:none;">
+                <div id="taskList">
+                    <div style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:20px;">
+                        暂无运行中的长任务
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        // 模拟各插件的返回数据和特性
+        const MOCK_DATA = {
+            'TradingAgents-CN': {
+                direction: 'buy',
+                confidence: 0.82,
+                summary: '近期财报超预期，营收同比增长25%。多智能体辩论结果：基本面Agent与情绪Agent均给出买入强烈建议，技术面Agent提示逢低建仓。',
+                latency: 45200 // 模拟真实 LLM 需要耗时近1分钟，这里为演示压缩时间
+            },
+            'TradingAgents': {
+                direction: 'hold',
+                confidence: 0.55,
+                summary: '全球宏观经济存在不确定性，SEC 财报无明显利好。建议暂时观望，等待下行风险释放。',
+                latency: 38100 
+            },
+            'Qlib 量化信号': {
+                direction: 'hold',
+                confidence: 0.61,
+                summary: 'Alpha信号中性偏正，因子IC值0.08。基于 LightGBM 预测未来 20 日收益率为 +1.2%。【注意】本地 SignalRecord 数据较老，建议重新运行回测。',
+                latency: 45, // 核心：Qlib 本地数据库查询极快（毫秒级）
+                status: 'STALE', // 状态: STALE (过期) | RESEARCHING (运行中) | READY (就绪)
+                age: 14 // 距离上次更新的天数
+            }
+        };
+
+        // 处理回车按键
+        function handleKey(e) {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('cmdInput').value.trim();
+                if (!input) return;
+                
+                document.getElementById('cmdInput').value = '';
+                
+                // 拦截特殊的后台任务命令
+                if (input.startsWith('sea research trigger')) {
+                    triggerRDAgent(input);
+                } else {
+                    executeEvaluation(input);
+                }
+            }
+        }
+
+        // 切换左侧插件激活状态
+        function togglePlugin(element) {
+            element.classList.toggle('active');
+        }
+
+        // 向控制台输出日志
+        function logTerm(msg, type = 'sys') {
+            const term = document.getElementById('terminal');
+            const colorClass = type === 'sys' ? 'term-sys' : (type === 'err' ? 'term-err' : 'term-succ');
+            const time = new Date().toLocaleTimeString();
+            term.innerHTML += `<div class="term-line"><span class="${colorClass}">[${time}]</span> ${msg}</div>`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // 执行股票评估 (查询态)
+        function executeEvaluation(ticker) {
+            logTerm(`Executing evaluate(ticker="${ticker}", date="latest")...`, 'sys');
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = ''; // 清空上次结果
+
+            const activePlugins = Array.from(document.querySelectorAll('.plugin-item.active .name')).map(el => el.innerText);
+
+            if (activePlugins.length === 0) {
+                logTerm('Error: No active plugins selected.', 'err');
+                return;
+            }
+
+            activePlugins.forEach(pluginName => {
+                const data = MOCK_DATA[pluginName];
+                if (!data) return;
+
+                // 为了演示效果，Qlib 立刻渲染，TA 类延迟渲染
+                if (pluginName === 'Qlib 量化信号') {
+                    renderCard(pluginName, data, ticker);
+                    logTerm(`${pluginName} API returned in ${data.latency}ms (Local DB hit)`, 'succ');
+                } else {
+                    // 模拟大模型思考延迟 (实际是几分钟，这里用 1.5 秒代替)
+                    logTerm(`${pluginName} is propagating multi-agent workflow...`, 'sys');
+                    setTimeout(() => {
+                        renderCard(pluginName, data, ticker);
+                        logTerm(`${pluginName} evaluation complete.`, 'succ');
+                    }, 1500 + Math.random() * 1000);
+                }
+            });
+        }
+
+        // 渲染单张结果卡片
+        function renderCard(pluginName, data, ticker) {
+            const grid = document.getElementById('resultsGrid');
+            
+            let verdictClass = data.direction;
+            let verdictText = data.direction.toUpperCase();
+
+            // 如果 Qlib 正在被 RD-Agent 训练，查询应被降级
+            let extraUI = '';
+            let summaryHTML = data.summary;
+
+            if (pluginName === 'Qlib 量化信号') {
+                if (data.status === 'RESEARCHING') {
+                    verdictClass = 'none';
+                    verdictText = 'UNAVAILABLE';
+                    summaryHTML = '<i>⚠️ RD-Agent 正在后台更新因子库和模型，当前拒绝提供高置信度预测，请等待离线任务完成。</i>';
+                } else if (data.status === 'STALE') {
+                    extraUI = `
+                    <div class="stale-alert">
+                        <div style="font-size: 0.75rem; color: var(--accent-amber); margin-bottom: 6px;">
+                            ⚠️ 因子信号已过期 (最后更新: ${data.age} 天前)
+                        </div>
+                        <button class="btn-trigger" onclick="triggerRDAgent('UI Button')">
+                            ⚙️ 触发 RD-Agent 后台研究 (预计耗时 ~45 分钟)
+                        </button>
+                    </div>`;
+                }
+            }
+
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="plugin-title">${pluginName}</span>
+                    <span class="latency">${data.latency} ms</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span class="verdict ${verdictClass}">${verdictText}</span>
+                </div>
+                <div class="confidence">
+                    <div class="conf-label">
+                        <span>置信度 / Confidence</span>
+                        <span>${(data.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="conf-bar-bg">
+                        <div class="conf-bar" style="width: ${data.confidence * 100}%; background-color: ${getConfColor(data.direction)}"></div>
+                    </div>
+                </div>
+                <div class="summary">${summaryHTML}</div>
+                ${extraUI}
+            `;
+            grid.appendChild(card);
+        }
+
+        function getConfColor(dir) {
+            if (dir === 'buy') return 'var(--accent-green)';
+            if (dir === 'sell') return 'var(--accent-red)';
+            if (dir === 'none') return 'var(--border)';
+            return 'var(--accent-amber)';
+        }
+
+        // ==========================================
+        // 核心亮点：触发 RD-Agent 异步长任务机制
+        // ==========================================
+        function triggerRDAgent(source) {
+            logTerm(`Triggering background research task via ${source}...`, 'sys');
+            logTerm(`POST http://qlib-rdagent-svc:8083/research/trigger -> Spawn local_qlib container`, 'sys');
+
+            // 1. 改变左侧边栏 Qlib 状态
+            const qItem = document.getElementById('qlibPluginItem');
+            qItem.setAttribute('data-status', 'researching');
+            document.getElementById('qlibMetaText').innerHTML = "<span style='color:var(--accent-blue)'>RD-Agent 正在生成因子代码...</span>";
+            
+            // 2. 更新内存数据状态
+            MOCK_DATA['Qlib 量化信号'].status = 'RESEARCHING';
+            MOCK_DATA['Qlib 量化信号'].summary = '当前因子库正在更新中，暂无最新预测。';
+            
+            // 3. 刷新卡片 UI (如果在视野内)
+            if (document.getElementById('resultsGrid').innerHTML !== '') {
+                // 简单起见，重新跑一次最近的查询
+                executeEvaluation('CSI300_POOL'); 
+            }
+
+            // 4. 激活右侧任务面板
+            document.getElementById('taskBadge').style.display = 'inline-block';
+            switchPanelTab('tasks');
+            
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = `
+                <div class="task-item">
+                    <div class="task-header">
+                        <span class="task-title">RD-Agent: CSI300 因子挖掘</span>
+                        <span class="task-status" style="color:var(--accent-blue)">运行中</span>
+                    </div>
+                    <div class="task-meta">触发时间: ${new Date().toLocaleTimeString()} | 引擎: Co-STEER</div>
+                    <div class="task-progress-bg">
+                        <div class="task-progress" style="width: 35%;"></div>
+                    </div>
+                    <div class="task-detail" id="rdAgentLog">
+                        > Docker build local_qlib:latest...<br>
+                        > 正在生成 Alpha 因子假设 (Research Layer)...
+                    </div>
+                </div>
+            `;
+
+            // 模拟进度日志
+            setTimeout(() => {
+                document.getElementById('rdAgentLog').innerHTML = `> 代码生成完毕 (Development Layer)<br>> 提交至 Qlib 进行回测验证...`;
+            }, 3000);
+        }
+
+        // 切换右侧面板 Tab
+        function switchPanelTab(tabId) {
+            document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.panel-tab[data-tab="${tabId}"]`).classList.add('active');
+            
+            document.getElementById('tab-history').style.display = tabId === 'history' ? 'block' : 'none';
+            document.getElementById('tab-tasks').style.display = tabId === 'tasks' ? 'block' : 'none';
+        }
+
+    </script>
+</body>
+</html>

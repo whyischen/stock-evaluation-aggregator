@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEA Engine</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <div>
+        <strong>SEA Engine</strong>
+        <small>Web First MVP</small>
+      </div>
+    </div>
+
+    <section>
+      <h2>插件状态</h2>
+      <div id="pluginStatus" class="status-list"></div>
+    </section>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>股票评估聚合器</h1>
+        <p>接入外部开源项目，横向展示不同评估来源的结果。</p>
+      </div>
+    </header>
+
+    <section class="query-panel">
+      <form id="evaluateForm" class="evaluate-form">
+        <label for="tickerInput">标的代码</label>
+        <div class="input-row">
+          <input id="tickerInput" name="ticker" value="600519.SS" autocomplete="off">
+          <button type="submit">开始评估</button>
+        </div>
+      </form>
+      <div class="plugin-picker">
+        <div class="picker-title">本次参与插件</div>
+        <div id="pluginPicker" class="picker-grid"></div>
+      </div>
+      <div class="quick-list">
+        <button data-ticker="600519.SS">600519.SS</button>
+        <button data-ticker="000858.SZ">000858.SZ</button>
+        <button data-ticker="AAPL">AAPL</button>
+        <button data-ticker="MSFT">MSFT</button>
+      </div>
+    </section>
+
+    <section id="report" class="report empty">
+      <div class="empty-state">输入或选择标的后开始评估。</div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEA · Stock Evaluation Aggregator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0e14;
+    --bg-panel: #11161e;
+    --bg-card: #161c26;
+    --bg-elevated: #1a2130;
+    --bg-input: #0d1117;
+    --border: #1e2836;
+    --border-active: #2a3a4e;
+    --text-primary: #e2e6ec;
+    --text-secondary: #8899aa;
+    --text-muted: #556677;
+    --accent-green: #00d4aa;
+    --accent-green-dim: #009977;
+    --accent-amber: #f0b028;
+    --accent-amber-dim: #b8860b;
+    --accent-red: #e0556a;
+    --accent-red-dim: #993344;
+    --accent-blue: #4a9eff;
+    --accent-blue-dim: #2a6ecc;
+    --accent-purple: #a78bfa;
+    --glow-green: 0 0 20px rgba(0,212,170,0.15);
+    --glow-amber: 0 0 20px rgba(240,176,40,0.15);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+    --font-sans: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 14px; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Background atmosphere */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,212,170,0.03) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(74,158,255,0.03) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(240,176,40,0.02) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Noise overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== LAYOUT ===== */
+  .app-shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 260px 1fr 320px;
+    grid-template-rows: 56px 1fr;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "sidebar main panel";
+    height: 100vh;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    grid-area: topbar;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    z-index: 10;
+  }
+  .topbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 8px;
+  }
+  .topbar-logo .mark {
+    width: 28px; height: 28px;
+    background: var(--accent-green);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-weight: 700; font-size: 0.75rem;
+    color: #000;
+    box-shadow: var(--glow-green);
+  }
+  .topbar-logo .word {
+    font-family: var(--font-mono); font-weight: 600; font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    color: var(--text-primary);
+  }
+  .topbar-logo .word span { color: var(--accent-green); }
+
+  .topbar-search {
+    flex: 1;
+    max-width: 520px;
+    position: relative;
+  }
+  .topbar-search input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px 8px 36px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .topbar-search input:focus {
+    border-color: var(--accent-green);
+    box-shadow: var(--glow-green);
+  }
+  .topbar-search input::placeholder { color: var(--text-muted); }
+  .topbar-search .icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 0.85rem;
+  }
+
+  .topbar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .topbar-actions .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    margin-right: 6px;
+  }
+  .topbar-actions .status-text {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+  .topbar-actions .btn {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .topbar-actions .btn:hover {
+    border-color: var(--border-active);
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+  }
+  .topbar-actions .btn.primary {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+    color: #000;
+    font-weight: 600;
+  }
+  .topbar-actions .btn.primary:hover {
+    background: var(--accent-green-dim);
+    border-color: var(--accent-green-dim);
+    box-shadow: var(--glow-green);
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    grid-area: sidebar;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-section h3 {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .plugin-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+  }
+  .plugin-item:hover { background: var(--bg-elevated); }
+  .plugin-item.active {
+    background: var(--bg-card);
+    border-color: var(--border-active);
+  }
+  .plugin-indicator {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .plugin-indicator.online { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+  .plugin-indicator.offline { background: var(--text-muted); }
+  .plugin-indicator.warning { background: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
+  .plugin-info { flex: 1; min-width: 0; }
+  .plugin-info .name { font-size: 0.82rem; font-weight: 500; }
+  .plugin-info .meta { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); }
+  .plugin-toggle {
+    width: 32px; height: 18px;
+    border-radius: 9px;
+    background: var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .plugin-toggle.on { background: var(--accent-green); }
+  .plugin-toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: white;
+    top: 2px; left: 2px;
+    transition: transform 0.2s;
+  }
+  .plugin-toggle.on::after { transform: translateX(14px); }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .nav-item:hover { color: var(--text-primary); background: var(--bg-elevated); }
+  .nav-item .badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* ===== MAIN PANEL ===== */
+  .main {
+    grid-area: main;
+    background: var(--bg-deep);
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Command bar */
+  .command-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 6px 6px 6px 16px;
+    font-family: var(--font-mono);
+  }
+  .command-prompt { color: var(--accent-green); font-weight: 600; font-size: 0.85rem; }
+  .command-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .command-bar input::placeholder { color: var(--text-muted); }
+  .command-bar kbd {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+  }
+
+  /* Eval header */
+  .eval-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .eval-meta h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .eval-meta h1 .ticker { font-family: var(--font-mono); color: var(--accent-green); }
+  .eval-meta .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-top: 4px;
+  }
+  .eval-meta .tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .tag {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .tag.green { border-color: rgba(0,212,170,0.3); color: var(--accent-green); }
+
+  /* Score ring */
+  .score-ring-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .score-ring {
+    width: 90px; height: 90px;
+    position: relative;
+  }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring .bg { fill: none; stroke: var(--border); stroke-width: 6; }
+  .score-ring .fill {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1);
+  }
+  .score-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .score-value .num {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .score-value .label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .consensus-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .consensus-badge.strong { background: rgba(0,212,170,0.12); color: var(--accent-green); border: 1px solid rgba(0,212,170,0.25); }
+  .consensus-badge.moderate { background: rgba(240,176,40,0.12); color: var(--accent-amber); border: 1px solid rgba(240,176,40,0.25); }
+  .consensus-badge.diverged { background: rgba(224,85,106,0.12); color: var(--accent-red); border: 1px solid rgba(224,85,106,0.25); }
+
+  /* Results Grid */
+  .section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-card:hover {
+    border-color: var(--border-active);
+    transform: translateY(-1px);
+  }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .result-card.bull::before { background: var(--accent-green); }
+  .result-card.hold::before { background: var(--accent-amber); }
+  .result-card.bear::before { background: var(--accent-red); }
+  .result-card.error::before { background: var(--text-muted); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card-plugin-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .card-direction {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .card-direction.buy { background: rgba(0,212,170,0.12); color: var(--accent-green); }
+  .card-direction.hold { background: rgba(240,176,40,0.12); color: var(--accent-amber); }
+  .card-direction.sell { background: rgba(224,85,106,0.12); color: var(--accent-red); }
+
+  .card-confidence {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+  .confidence-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .confidence-bar .fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+  .confidence-bar .fill.high { background: var(--accent-green); }
+  .confidence-bar .fill.mid { background: var(--accent-amber); }
+  .confidence-bar .fill.low { background: var(--accent-red); }
+
+  .card-summary {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .card-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .card-meta .latency { color: var(--accent-blue); }
+
+  /* Aggregated Summary Panel */
+  .agg-summary {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .agg-stats {
+    display: flex;
+    gap: 24px;
+    flex: 1;
+  }
+  .agg-stat {
+    text-align: center;
+  }
+  .agg-stat .value {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .agg-stat .value.green { color: var(--accent-green); }
+  .agg-stat .value.amber { color: var(--accent-amber); }
+  .agg-stat .value.red { color: var(--accent-red); }
+  .agg-stat .desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .agg-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  /* ===== RIGHT PANEL ===== */
+  .panel {
+    grid-area: panel;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+  .panel-tab:hover { color: var(--text-secondary); }
+  .panel-tab.active {
+    color: var(--accent-green);
+    border-bottom-color: var(--accent-green);
+  }
+  .panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+  }
+  .history-item {
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 6px;
+  }
+  .history-item:hover {
+    background: var(--bg-card);
+    border-color: var(--border);
+  }
+  .history-item .row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .history-item .ticker {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .history-item .score {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .history-item .row2 {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+  }
+  .animate-in {
+    animation: fadeInUp 0.4s ease-out both;
+  }
+  .result-card:nth-child(1) { animation-delay: 0.05s; }
+  .result-card:nth-child(2) { animation-delay: 0.1s; }
+  .result-card:nth-child(3) { animation-delay: 0.15s; }
+  .result-card:nth-child(4) { animation-delay: 0.2s; }
+
+  /* Running state */
+  .running .card-summary {
+    background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-elevated) 50%, var(--bg-card) 100%);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+    color: transparent;
+  }
+  .running .confidence-bar .fill { animation: pulse 1s infinite; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .app-shell {
+      grid-template-columns: 220px 1fr;
+      grid-template-areas:
+        "topbar topbar"
+        "sidebar main";
+    }
+    .panel { display: none; }
+  }
+  @media (max-width: 768px) {
+    .app-shell {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "topbar"
+        "main";
+    }
+    .sidebar { display: none; }
+    .panel { display: none; }
+    .eval-header { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="mark">SEA</div>
+      <div class="word">Stock<span>Eval</span>Aggregator</div>
+    </div>
+    <div class="topbar-search">
+      <span class="icon">⌘K</span>
+      <input type="text" id="globalSearch" placeholder="搜索标的代码...  如 600519.SS / AAPL / 00700.HK" autocomplete="off">
+    </div>
+    <div class="topbar-actions">
+      <span class="status-dot"></span>
+      <span class="status-text" id="pluginStatus">4 插件就绪</span>
+      <button class="btn" onclick="toggleAllPlugins()">⚙ 插件管理</button>
+      <button class="btn primary" onclick="runEvaluation()">▶ 执行评估</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h3>评估源插件</h3>
+      <div id="pluginList">
+        <div class="plugin-item active" data-plugin="tradingagents" onclick="togglePlugin(this)">
+          <span class="plugin-indicator online"></span>
+          <div class="plugin-info">
+            <div class="name">TradingAgents</div>
+            <div class="meta">TauricResearch · v0.2.0</div>
+          </div>
+          <div class="plugin-toggle on" onclick="event.stopPropagation(); togglePluginSwitch(this)"></div>
+        </div>
+        <div class="plugin-item active" data-plugin="tradingagents-cn" onclick="togglePlugin(this)">
+          <span class="plugin-indicator online"></span>
+          <div class="plugin-info">
+            <div class="name">TradingAgents-CN</div>
+            <div class="meta">hsliuping · v0.1.5</div>
+          </div>
+          <div class="plugin-toggle on" onclick="event.stopPropagation(); togglePluginSwitch(this)"></div>
+        </div>
+        <div class="plugin-item active" data-plugin="qlib" onclick="togglePlugin(this)">
+          <span class="plugin-indicator online"></span>
+          <div class="plugin-info">
+            <div class="name">Microsoft Qlib</div>
+            <div class="meta">AI量化平台 · v0.9.5</div>
+          </div>
+          <div class="plugin-toggle on" onclick="event.stopPropagation(); togglePluginSwitch(this)"></div>
+        </div>
+        <div class="plugin-item" data-plugin="rd-agent" onclick="togglePlugin(this)">
+          <span class="plugin-indicator warning"></span>
+          <div class="plugin-info">
+            <div class="name">RD-Agent</div>
+            <div class="meta">Microsoft · Q模式</div>
+          </div>
+          <div class="plugin-toggle" onclick="event.stopPropagation(); togglePluginSwitch(this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>导航</h3>
+      <a class="nav-item" href="#">📊 评估看板 <span class="badge">当前</span></a>
+      <a class="nav-item" href="#">📋 历史记录 <span class="badge">23</span></a>
+      <a class="nav-item" href="#">🔌 插件市场</a>
+      <a class="nav-item" href="#">⚙ 系统配置</a>
+      <a class="nav-item" href="#">📖 API文档</a>
+    </div>
+
+    <div class="sidebar-section" style="margin-top: auto;">
+      <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.6;">
+        <div>SEA Core v0.1.0-dev</div>
+        <div>Python 3.12 · asyncio</div>
+        <div style="margin-top:6px;padding:8px;background:rgba(224,85,106,0.08);border-radius:6px;border:1px solid rgba(224,85,106,0.2);">
+          ⚠ 评估结论仅供参考<br>不构成投资建议
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <!-- Command bar -->
+    <div class="command-bar">
+      <span class="command-prompt">sea evaluate</span>
+      <input type="text" id="cmdInput" placeholder="--ticker 600519.SS --date 2026-06-01" autocomplete="off">
+      <kbd>⏎ 执行</kbd>
+    </div>
+
+    <!-- Eval Header -->
+    <div class="eval-header animate-in">
+      <div class="eval-meta">
+        <h1><span class="ticker" id="mainTicker">600519.SS</span> 贵州茅台</h1>
+        <div class="subtitle">评估日期：2026-06-01 · 数据截止最近交易日</div>
+        <div class="tags">
+          <span class="tag green">A 股主板</span>
+          <span class="tag">消费 · 白酒</span>
+          <span class="tag">沪深300</span>
+        </div>
+      </div>
+      <div class="score-ring-container">
+        <div class="score-ring">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="bg" cx="45" cy="45" r="39"/>
+            <circle class="fill" id="scoreRingFill" cx="45" cy="45" r="39"
+              stroke="#00d4aa"
+              stroke-dasharray="245"
+              stroke-dashoffset="245"
+              style="stroke-dashoffset: 245;"/>
+          </svg>
+          <div class="score-value">
+            <span class="num" id="scoreNum" style="color:var(--accent-green)">--</span>
+            <span class="label">综合评分</span>
+          </div>
+        </div>
+        <span class="consensus-badge moderate" id="consensusBadge">等待评估</span>
+      </div>
+    </div>
+
+    <!-- Aggregated Summary -->
+    <div class="agg-summary animate-in" style="animation-delay:0.08s">
+      <div class="agg-stats">
+        <div class="agg-stat">
+          <div class="value green" id="statBuy">--</div>
+          <div class="desc">看多</div>
+        </div>
+        <div class="agg-stat">
+          <div class="value amber" id="statHold">--</div>
+          <div class="desc">持有</div>
+        </div>
+        <div class="agg-stat">
+          <div class="value red" id="statSell">--</div>
+          <div class="desc">看空</div>
+        </div>
+      </div>
+      <div class="agg-divider"></div>
+      <div class="agg-stats">
+        <div class="agg-stat">
+          <div class="value" style="color:var(--accent-blue)" id="statSuccess">--</div>
+          <div class="desc">成功</div>
+        </div>
+        <div class="agg-stat">
+          <div class="value" style="color:var(--text-muted)" id="statFailed">--</div>
+          <div class="desc">失败/超时</div>
+        </div>
+        <div class="agg-stat">
+          <div class="value" style="color:var(--text-secondary)" id="statLatency">--</div>
+          <div class="desc">总耗时</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plugin Results -->
+    <div class="section-title">插件评估详情</div>
+    <div class="results-grid" id="resultsGrid">
+      <!-- Cards rendered by JS -->
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" onclick="switchPanelTab(this, 'history')">评估历史</div>
+      <div class="panel-tab" onclick="switchPanelTab(this, 'watchlist')">自选股</div>
+    </div>
+    <div class="panel-content" id="panelContent">
+      <!-- History items -->
+    </div>
+  </aside>
+
+</div>
+
+<script>
+  // ===== DATA STATE =====
+  const plugins = [
+    {
+      id: 'tradingagents',
+      name: 'TradingAgents',
+      vendor: 'TauricResearch',
+      version: '0.2.0',
+      market: 'ALL',
+      enabled: true,
+      available: true,
+      type: 'llm',
+      avgLatency: '90~180s'
+    },
+    {
+      id: 'tradingagents-cn',
+      name: 'TradingAgents-CN',
+      vendor: 'hsliuping',
+      version: '0.1.5',
+      market: 'A_SHARE',
+      enabled: true,
+      available: true,
+      type: 'llm',
+      avgLatency: '90~180s'
+    },
+    {
+      id: 'qlib',
+      name: 'Microsoft Qlib',
+      vendor: 'Microsoft',
+      version: '0.9.5',
+      market: 'ALL',
+      enabled: true,
+      available: true,
+      type: 'ml',
+      avgLatency: '2~5s'
+    },
+    {
+      id: 'rd-agent',
+      name: 'RD-Agent',
+      vendor: 'Microsoft',
+      version: '0.3.0',
+      market: 'ALL',
+      enabled: false,
+      available: true,
+      type: 'research',
+      avgLatency: '20~60min'
+    }
+  ];
+
+  const historyData = [
+    { ticker: '600519.SS', name: '贵州茅台', date: '2026-06-01', score: '+0.54', consensus: 'moderate', dir: 'buy' },
+    { ticker: 'AAPL', name: 'Apple Inc.', date: '2026-05-30', score: '+0.72', consensus: 'strong', dir: 'buy' },
+    { ticker: '000858.SZ', name: '五粮液', date: '2026-05-28', score: '+0.31', consensus: 'moderate', dir: 'hold' },
+    { ticker: 'TSLA', name: 'Tesla Inc.', date: '2026-05-25', score: '-0.18', consensus: 'diverged', dir: 'sell' },
+    { ticker: '00700.HK', name: '腾讯控股', date: '2026-05-22', score: '+0.61', consensus: 'strong', dir: 'buy' },
+    { ticker: '600036.SS', name: '招商银行', date: '2026-05-20', score: '+0.28', consensus: 'moderate', dir: 'hold' },
+  ];
+
+  // Mock eval results — simulates what plugins return
+  const mockResults = {
+    'tradingagents': { direction: 'buy', confidence: 0.78, summary: '基本面稳健，白酒板块龙头地位稳固。技术面周线级别MACD金叉，情绪面社交媒体正面提及率上升。建议逢低布局，目标价看至2100元。', latency: 142000 },
+    'tradingagents-cn': { direction: 'buy', confidence: 0.82, summary: 'A股消费龙头，Q1财报超预期。北向资金持续净流入，机构持仓比例维持高位。技术面短期均线多头排列，建议积极配置。', latency: 138000 },
+    'qlib': { direction: 'hold', confidence: 0.61, summary: 'Alpha信号中性偏正，因子IC值0.08。LGBM模型预测未来20日收益率+1.2%，夏普比率1.15。当前估值处于历史中位，建议持有观望。', latency: 2300 },
+    'rd-agent': { direction: null, confidence: null, summary: null, latency: null, error: '执行超时（超过30分钟阈值），已跳过。建议降低研究深度参数或使用预计算缓存模式。' },
+  };
+
+  // ===== INIT =====
+  document.addEventListener('DOMContentLoaded', () => {
+    renderHistory();
+    renderResults('idle');
+    updateTopBarStatus();
+
+    // Search: trigger eval on Enter
+    document.getElementById('globalSearch').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const ticker = e.target.value.trim();
+        if (ticker) {
+          document.getElementById('mainTicker').textContent = ticker;
+          runEvaluation();
+        }
+      }
+    });
+
+    document.getElementById('cmdInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runEvaluation();
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('globalSearch').focus();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runEvaluation();
+      }
+    });
+  });
+
+  // ===== PLUGIN TOGGLE =====
+  function togglePlugin(el) {
+    el.classList.toggle('active');
+    const pluginId = el.dataset.plugin;
+    const plugin = plugins.find(p => p.id === pluginId);
+    if (plugin) plugin.enabled = el.classList.contains('active');
+    updateTopBarStatus();
+  }
+
+  function togglePluginSwitch(toggleEl) {
+    toggleEl.classList.toggle('on');
+    const pluginItem = toggleEl.parentElement;
+    const pluginId = pluginItem.dataset.plugin;
+    const plugin = plugins.find(p => p.id === pluginId);
+    if (plugin) {
+      plugin.enabled = toggleEl.classList.contains('on');
+      if (plugin.enabled) {
+        pluginItem.classList.add('active');
+      } else {
+        pluginItem.classList.remove('active');
+      }
+    }
+    updateTopBarStatus();
+  }
+
+  function toggleAllPlugins() {
+    const allEnabled = plugins.every(p => p.enabled);
+    plugins.forEach(p => p.enabled = !allEnabled);
+    document.querySelectorAll('#pluginList .plugin-item').forEach(item => {
+      const pid = item.dataset.plugin;
+      const p = plugins.find(pl => pl.id === pid);
+      if (p && p.available) {
+        if (p.enabled) item.classList.add('active'); else item.classList.remove('active');
+        const toggle = item.querySelector('.plugin-toggle');
+        if (p.enabled) toggle.classList.add('on'); else toggle.classList.remove('on');
+      }
+    });
+    updateTopBarStatus();
+  }
+
+  function updateTopBarStatus() {
+    const enabled = plugins.filter(p => p.enabled && p.available).length;
+    document.getElementById('pluginStatus').textContent = `${enabled} 插件就绪`;
+  }
+
+  // ===== PANEL TABS =====
+  function switchPanelTab(tab, section) {
+    tab.parentElement.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    if (section === 'history') renderHistory();
+  }
+
+  // ===== RENDER HISTORY =====
+  function renderHistory() {
+    const container = document.getElementById('panelContent');
+    container.innerHTML = historyData.map(h => `
+      <div class="history-item" onclick="loadHistory('${h.ticker}')">
+        <div class="row1">
+          <span class="ticker" style="color:${h.dir==='buy'?'var(--accent-green)':h.dir==='sell'?'var(--accent-red)':'var(--accent-amber)'}">${h.ticker}</span>
+          <span class="score" style="color:${parseFloat(h.score)>=0?'var(--accent-green)':'var(--accent-red)'}">${h.score}</span>
+        </div>
+        <div class="row2">${h.name} · ${h.date} · ${h.consensus}</div>
+      </div>
+    `).join('');
+  }
+
+  function loadHistory(ticker) {
+    document.getElementById('mainTicker').textContent = ticker;
+    document.getElementById('globalSearch').value = ticker;
+    document.getElementById('cmdInput').value = `--ticker ${ticker}`;
+    runEvaluation();
+  }
+
+  // ===== RUN EVALUATION =====
+  async function runEvaluation() {
+    const ticker = document.getElementById('mainTicker').textContent;
+    const enabledPlugins = plugins.filter(p => p.enabled && p.available);
+
+    if (enabledPlugins.length === 0) {
+      alert('请至少启用一个评估插件');
+      return;
+    }
+
+    // Show running state
+    renderResults('running', enabledPlugins);
+    updateAggregatedSummary(null);
+    document.getElementById('scoreNum').textContent = '...';
+    document.getElementById('scoreNum').style.color = 'var(--text-muted)';
+    document.getElementById('consensusBadge').textContent = '评估中...';
+    document.getElementById('consensusBadge').className = 'consensus-badge moderate';
+
+    const cmdInput = document.getElementById('cmdInput');
+    cmdInput.value = `--ticker ${ticker} --date 2026-06-01`;
+    cmdInput.style.color = 'var(--accent-amber)';
+
+    // Simulate staggered plugin responses
+    const results = [];
+    const delays = { 'qlib': 800, 'tradingagents': 2200, 'tradingagents-cn': 2600, 'rd-agent': 3500 };
+
+    for (const plugin of enabledPlugins) {
+      const delay = delays[plugin.id] || 1500;
+      setTimeout(() => {
+        const result = mockResults[plugin.id] || { direction: 'hold', confidence: 0.5, summary: '无数据', latency: 1000 };
+        results.push({ ...result, pluginId: plugin.id, pluginName: plugin.name });
+
+        // Update individual card
+        updateResultCard(plugin.id, result);
+
+        // If all returned, compute aggregate
+        if (results.length >= enabledPlugins.filter(p => p.id !== 'rd-agent' || mockResults['rd-agent'].error === null).length ||
+            results.length >= enabledPlugins.length) {
+          // Small delay so user sees transitions
+          setTimeout(() => computeAggregate(results, enabledPlugins.length), 400);
+          cmdInput.style.color = 'var(--text-primary)';
+        }
+      }, delay);
+    }
+  }
+
+  function renderResults(state, enabledPluginsOverride) {
+    const grid = document.getElementById('resultsGrid');
+    const pluginList = enabledPluginsOverride || plugins.filter(p => p.enabled && p.available);
+
+    if (state === 'idle') {
+      grid.innerHTML = plugins.filter(p => p.available).map(p => `
+        <div class="result-card animate-in">
+          <div class="card-header">
+            <span class="card-plugin-name">${p.name}</span>
+            <span style="font-size:0.7rem;color:var(--text-muted);">${p.vendor}</span>
+          </div>
+          <div class="card-summary" style="color:var(--text-muted);text-align:center;padding:20px 0;">
+            等待评估...
+          </div>
+          <div class="card-meta">
+            <span>⏱ ~${p.avgLatency}</span>
+            <span>${p.type === 'llm' ? '🤖 LLM' : p.type === 'ml' ? '📊 ML' : '🔬 AI研究'}</span>
+          </div>
+        </div>
+      `).join('');
+    } else if (state === 'running') {
+      grid.innerHTML = pluginList.map(p => `
+        <div class="result-card animate-in running" id="card-${p.id}">
+          <div class="card-header">
+            <span class="card-plugin-name">${p.name}</span>
+            <span style="font-size:0.7rem;color:var(--accent-amber);">执行中...</span>
+          </div>
+          <div class="card-confidence">
+            <span>置信度</span>
+            <div class="confidence-bar"><div class="fill mid" style="width:30%"></div></div>
+          </div>
+          <div class="card-summary">正在调用 ${p.name} 引擎...</div>
+          <div class="card-meta">
+            <span>⏱ 运行中</span>
+            <span>${p.type === 'llm' ? '🤖 LLM' : p.type === 'ml' ? '📊 ML' : '🔬 AI研究'}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  function updateResultCard(pluginId, result) {
+    const card = document.getElementById(`card-${pluginId}`);
+    if (!card) return;
+
+    card.classList.remove('running');
+
+    if (result.error) {
+      card.className = 'result-card error animate-in';
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="card-plugin-name">${plugins.find(p=>p.id===pluginId)?.name||pluginId}</span>
+          <span style="font-size:0.7rem;color:var(--accent-red);">失败</span>
+        </div>
+        <div class="card-summary" style="color:var(--accent-red);">${result.error}</div>
+        <div class="card-meta"><span>❌ 超时跳过</span></div>
+      `;
+      return;
+    }
+
+    const dirMap = { buy: 'bull', hold: 'hold', sell: 'bear' };
+    const dirClass = dirMap[result.direction] || 'hold';
+    const dirLabel = { buy: '🟢 买入', hold: '🟡 持有', sell: '🔴 卖出' };
+    const dirBadge = { buy: 'buy', hold: 'hold', sell: 'sell' };
+    const confLevel = result.confidence >= 0.75 ? 'high' : result.confidence >= 0.5 ? 'mid' : 'low';
+
+    card.className = `result-card ${dirClass} animate-in`;
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-plugin-name">${plugins.find(p=>p.id===pluginId)?.name||pluginId}</span>
+        <span class="card-direction ${dirBadge[result.direction]}">${dirLabel[result.direction]}</span>
+      </div>
+      <div class="card-confidence">
+        <span>置信度 ${(result.confidence*100).toFixed(0)}%</span>
+        <div class="confidence-bar">
+          <div class="fill ${confLevel}" style="width:${result.confidence*100}%"></div>
+        </div>
+      </div>
+      <div class="card-summary">${result.summary}</div>
+      <div class="card-meta">
+        <span class="latency">⏱ ${(result.latency/1000).toFixed(1)}s</span>
+        <span>${plugins.find(p=>p.id===pluginId)?.vendor||''}</span>
+      </div>
+    `;
+  }
+
+  function computeAggregate(results, totalPlugins) {
+    const successful = results.filter(r => !r.error);
+    const failed = results.filter(r => r.error);
+
+    // Direction values
+    const dirVal = { buy: 1, hold: 0, sell: -1 };
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    const dirCounts = { buy: 0, hold: 0, sell: 0 };
+
+    successful.forEach(r => {
+      const val = dirVal[r.direction] || 0;
+      const weight = r.confidence || 0.5;
+      totalWeightedScore += val * weight;
+      totalWeight += weight;
+      dirCounts[r.direction] = (dirCounts[r.direction] || 0) + 1;
+    });
+
+    const aggScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+    const maxDir = Math.max(dirCounts.buy || 0, dirCounts.hold || 0, dirCounts.sell || 0);
+    const totalDirs = (dirCounts.buy || 0) + (dirCounts.hold || 0) + (dirCounts.sell || 0);
+    const ratio = totalDirs > 0 ? maxDir / totalDirs : 0;
+
+    let consensus, consensusClass;
+    if (totalDirs === 0) { consensus = '无数据'; consensusClass = 'moderate'; }
+    else if (ratio === 1) { consensus = '强共识'; consensusClass = 'strong'; }
+    else if (ratio > 0.6) { consensus = '中等共识'; consensusClass = 'moderate'; }
+    else { consensus = '意见分歧'; consensusClass = 'diverged'; }
+
+    const totalLatency = successful.reduce((sum, r) => sum + (r.latency || 0), 0);
+
+    // Update UI
+    document.getElementById('scoreNum').textContent = aggScore >= 0 ? `+${aggScore.toFixed(2)}` : aggScore.toFixed(2);
+    document.getElementById('scoreNum').style.color = aggScore > 0.2 ? 'var(--accent-green)' : aggScore < -0.2 ? 'var(--accent-red)' : 'var(--accent-amber)';
+
+    document.getElementById('consensusBadge').textContent = consensus;
+    document.getElementById('consensusBadge').className = `consensus-badge ${consensusClass}`;
+
+    document.getElementById('statBuy').textContent = dirCounts.buy || '0';
+    document.getElementById('statHold').textContent = dirCounts.hold || '0';
+    document.getElementById('statSell').textContent = dirCounts.sell || '0';
+    document.getElementById('statSuccess').textContent = successful.length;
+    document.getElementById('statFailed').textContent = failed.length;
+    document.getElementById('statLatency').textContent = `${(totalLatency/1000).toFixed(1)}s`;
+
+    // Animate score ring
+    const ring = document.getElementById('scoreRingFill');
+    const normalizedScore = (aggScore + 1) / 2; // 0..1
+    const circumference = 245;
+    const offset = circumference * (1 - normalizedScore);
+    ring.style.strokeDashoffset = offset;
+    ring.style.stroke = aggScore > 0.2 ? 'var(--accent-green)' : aggScore < -0.2 ? 'var(--accent-red)' : 'var(--accent-amber)';
+    ring.style.filter = aggScore > 0.5 ? 'drop-shadow(0 0 6px rgba(0,212,170,0.5))' : 'none';
+  }
+
+  function updateAggregatedSummary(data) {
+    // reset
+    document.getElementById('statBuy').textContent = '--';
+    document.getElementById('statHold').textContent = '--';
+    document.getElementById('statSell').textContent = '--';
+    document.getElementById('statSuccess').textContent = '--';
+    document.getElementById('statFailed').textContent = '--';
+    document.getElementById('statLatency').textContent = '--';
+  }
+
+  // Initial render
+  renderResults('idle');
+  updateAggregatedSummary(null);
+</script>
+
+</body>
+</html>

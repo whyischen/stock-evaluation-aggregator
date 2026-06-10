@@ -11,6 +11,9 @@ services:
       SEA_TRADINGAGENTS_CN_URL: http://tradingagents-cn-svc:8080
       SEA_TRADINGAGENTS_URL: http://tradingagents-svc:8080
       SEA_ENABLE_MOCK_PLUGINS: ${SEA_ENABLE_MOCK_PLUGINS:-true}
+      SEA_DB_PATH: /data/sea.sqlite3
+    volumes:
+      - sea_data:/data
     depends_on:
       - tradingagents-cn-svc
       - tradingagents-svc
@@ -39,3 +42,5 @@ services:
       SEA_ENABLE_LIVE_TRADINGAGENTS: ${SEA_ENABLE_LIVE_TRADINGAGENTS:-false}
       SEA_TRADINGAGENTS_TIMEOUT_SECONDS: ${SEA_TRADINGAGENTS_TIMEOUT_SECONDS:-300}
 
+volumes:
+  sea_data:

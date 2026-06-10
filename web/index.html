@@ -20,6 +20,11 @@
       <h2>插件状态</h2>
       <div id="pluginStatus" class="status-list"></div>
     </section>
+
+    <section class="sidebar-section">
+      <h2>关注列表</h2>
+      <div id="watchlist" class="status-list"></div>
+    </section>
   </aside>
 
   <main class="main">
@@ -52,6 +57,14 @@
 
     <section id="report" class="report empty">
       <div class="empty-state">输入或选择标的后开始评估。</div>
+    </section>
+
+    <section class="history-panel">
+      <div class="section-head">
+        <h2>最近评估</h2>
+        <button id="refreshHistoryBtn" type="button">刷新</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
     </section>
   </main>
 

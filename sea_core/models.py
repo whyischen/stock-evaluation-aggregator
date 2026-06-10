@@ -123,3 +123,38 @@ class EvalReport(BaseModel):
     weighted_score: float | None
     divergence_notes: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class WatchlistCreate(BaseModel):
+    ticker: str = Field(..., min_length=1)
+    name: str | None = None
+    market: Market | None = None
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_ticker(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class WatchlistItem(BaseModel):
+    ticker: str
+    name: str | None = None
+    market: Market
+    created_at: datetime
+
+
+class EvaluationHistoryItem(BaseModel):
+    id: int
+    ticker: str
+    eval_date: date
+    market: Market
+    weighted_score: float | None
+    consensus_level: str
+    success_count: int
+    failed_count: int
+    created_at: datetime
+
+
+class EvaluationHistoryDetail(BaseModel):
+    id: int
+    report: EvalReport

@@ -53,6 +53,10 @@ body {
   color: var(--muted);
 }
 
+.sidebar-section {
+  margin-top: 28px;
+}
+
 h1, h2, p {
   margin: 0;
 }
@@ -134,7 +138,8 @@ h2 {
 }
 
 .query-panel,
-.report {
+.report,
+.history-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -246,6 +251,58 @@ button[type="submit"] {
   overflow: hidden;
 }
 
+.history-panel {
+  margin-top: 20px;
+  padding: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-head button {
+  height: 30px;
+  color: var(--muted);
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-item,
+.watch-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: #0f151d;
+}
+
+.history-top,
+.watch-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-item button,
+.watch-item button {
+  height: 28px;
+  padding: 0 8px;
+  color: var(--muted);
+}
+
+.empty-small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .empty-state {
   display: grid;
   min-height: 280px;
@@ -281,6 +338,18 @@ button[type="submit"] {
   display: grid;
   gap: 12px;
   padding: 20px;
+}
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 0 20px 20px;
+}
+
+.report-actions button {
+  height: 34px;
 }
 
 .result-card {

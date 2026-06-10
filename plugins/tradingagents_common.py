@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import importlib
 import inspect
 import json
@@ -28,8 +29,8 @@ class TradingAgentsAdapter:
             return self._health("unavailable", gate)
 
         try:
-            _, config_cls = self._load_graph_types()
-            self._create_config(config_cls, {})
+            graph_cls, config_obj = self._load_graph_types()
+            self._create_config(config_obj, {})
         except Exception as exc:
             return self._health("unavailable", f"dependency unavailable: {exc}")
 
@@ -43,10 +44,10 @@ class TradingAgentsAdapter:
             return self._unavailable(task, gate, started)
 
         try:
-            graph_cls, config_cls = self._load_graph_types()
-            config = self._create_config(config_cls, overrides)
+            graph_cls, config_obj = self._load_graph_types()
+            config = self._create_config(config_obj, overrides)
             graph = graph_cls(debug=False, config=config)
-            state, decision = graph.propagate(task.ticker, task.eval_date.isoformat())
+            state, decision = self._propagate(graph, task.ticker, task.eval_date.isoformat())
             parsed = parse_decision(decision)
             return PluginResult(
                 plugin_id=self.manifest.plugin_id,
@@ -64,13 +65,15 @@ class TradingAgentsAdapter:
                 latency_ms=_elapsed_ms(started),
             )
         except Exception as exc:
+            import traceback
+            error_detail = traceback.format_exc()
             return PluginResult(
                 plugin_id=self.manifest.plugin_id,
                 plugin_name=self.manifest.name,
                 ticker=task.ticker,
                 eval_date=task.eval_date,
                 status=PluginStatus.FAILED,
-                error=str(exc),
+                error=f"{str(exc)}\n\n{error_detail}",
                 latency_ms=_elapsed_ms(started),
             )
 
@@ -83,14 +86,58 @@ class TradingAgentsAdapter:
 
     def _load_graph_types(self):
         graph_module = importlib.import_module("tradingagents.graph.trading_graph")
-        config_module = importlib.import_module("tradingagents.config")
         graph_cls = getattr(graph_module, "TradingAgentsGraph")
-        config_cls = getattr(config_module, "TradingAgentsConfig")
-        return graph_cls, config_cls
 
-    def _create_config(self, config_cls: type, overrides: dict[str, Any] | None = None) -> Any:
-        config_values = build_tradingagents_config({}, self.manifest.plugin_id, overrides)
-        return config_cls(**_filter_config_values(config_cls, config_values))
+        if self.variant == "tradingagents_cn":
+            # CN version uses DEFAULT_CONFIG dict from tradingagents.default_config
+            config_module = importlib.import_module("tradingagents.default_config")
+            default_config = getattr(config_module, "DEFAULT_CONFIG", {})
+            return graph_cls, default_config.copy() if hasattr(default_config, "copy") else {}
+        else:
+            # Original version uses TradingAgentsConfig class from tradingagents.config
+            config_module = importlib.import_module("tradingagents.config")
+            config_cls = getattr(config_module, "TradingAgentsConfig")
+            return graph_cls, config_cls
+
+    def _create_config(self, config_obj: Any, overrides: dict[str, Any] | None = None) -> Any:
+        config_values = build_tradingagents_config(
+            config_obj if isinstance(config_obj, dict) else {},
+            self.manifest.plugin_id,
+            overrides,
+        )
+
+        if isinstance(config_obj, dict):
+            # CN version: return dict directly
+            return config_values
+        else:
+            # Original version: instantiate TradingAgentsConfig class
+            return config_obj(**_filter_config_values(config_obj, config_values))
+
+    def _propagate(self, graph: Any, ticker: str, eval_date: str) -> tuple[Any, Any]:
+        if self.variant != "tradingagents_cn":
+            return graph.propagate(ticker, eval_date)
+
+        compiled_graph = getattr(graph, "graph", None)
+        stream = getattr(compiled_graph, "stream", None)
+        if not callable(stream):
+            return graph.propagate(ticker, eval_date)
+
+        def compatible_stream(*args: Any, **kwargs: Any):
+            for chunk in stream(*args, **kwargs):
+                yield _normalize_cn_stream_chunk(chunk)
+
+        try:
+            setattr(compiled_graph, "stream", compatible_stream)
+        except (AttributeError, TypeError):
+            return graph.propagate(ticker, eval_date)
+
+        try:
+            return graph.propagate(ticker, eval_date)
+        finally:
+            try:
+                setattr(compiled_graph, "stream", stream)
+            except (AttributeError, TypeError):
+                pass
 
     def _health(self, status: str, message: str) -> PluginHealth:
         return PluginHealth(
@@ -147,6 +194,22 @@ def build_tradingagents_config(
     _deep_update(config, _env_config_for(plugin_id))
     _deep_update(config, overrides or {})
     return config
+
+
+def _normalize_cn_stream_chunk(chunk: Any) -> Any:
+    if not isinstance(chunk, Mapping):
+        return chunk
+
+    node_updates = [
+        value for key, value in chunk.items() if not str(key).startswith("__")
+    ]
+    if not node_updates:
+        return chunk
+
+    if all(isinstance(value, Mapping) for value in node_updates):
+        return chunk
+
+    return {"sea_state": dict(chunk)}
 
 
 def _filter_config_values(config_cls: type, config: dict[str, Any]) -> dict[str, Any]:

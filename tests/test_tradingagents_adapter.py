@@ -136,3 +136,54 @@ async def test_adapter_passes_llm_config_to_tradingagents_graph(monkeypatch):
     assert config.quick_think_llm == "gpt-4.1-mini"
     assert not hasattr(config, "backend_url")
     assert not hasattr(config, "api_key")
+
+
+@pytest.mark.asyncio
+async def test_tradingagents_cn_normalizes_langgraph_state_stream_chunks(monkeypatch):
+    class FakeCompiledGraph:
+        def __init__(self):
+            self.stream_restored = False
+            self.original_stream = self.stream
+
+        def stream(self, *_args, **_kwargs):
+            yield {
+                "ticker": "600519.SS",
+                "market_report": "看多贵州茅台",
+                "messages": ["analyst message"],
+                "__metadata__": {"step": 1},
+            }
+
+    class FakeGraph:
+        compiled_graph: FakeCompiledGraph | None = None
+
+        def __init__(self, debug: bool, config: dict[str, object]):
+            self.graph = FakeCompiledGraph()
+            FakeGraph.compiled_graph = self.graph
+
+        def propagate(self, ticker: str, eval_date: str):
+            final_state = {}
+            for chunk in self.graph.stream({"ticker": ticker, "trade_date": eval_date}):
+                for node_name, node_update in chunk.items():
+                    if not node_name.startswith("__"):
+                        final_state.update(node_update)
+            return final_state, {"decision": "买入，置信度 80%"}
+
+    def fake_load_graph_types(self):
+        return FakeGraph, {"quick_provider": "dashscope"}
+
+    monkeypatch.setenv("SEA_ENABLE_LIVE_TRADINGAGENTS", "true")
+    monkeypatch.setenv("SEA_TRADINGAGENTS_CN_CONFIG__QUICK_API_KEY", "task-key")
+    monkeypatch.setattr(TradingAgentsAdapter, "_load_graph_types", fake_load_graph_types)
+
+    adapter = TradingAgentsAdapter(_manifest("tradingagents_cn"), variant="tradingagents_cn")
+    task = EvaluationTask(ticker="600519.SS", eval_date=date(2026, 6, 9))
+
+    result = await adapter.evaluate(task)
+
+    assert result.direction == Direction.BUY
+    assert result.confidence == 0.8
+    assert result.summary
+    assert result.detail["state"]["ticker"] == "600519.SS"
+    assert result.detail["state"]["market_report"] == "看多贵州茅台"
+    assert FakeGraph.compiled_graph is not None
+    assert FakeGraph.compiled_graph.stream == FakeGraph.compiled_graph.original_stream

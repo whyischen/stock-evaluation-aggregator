@@ -35,14 +35,14 @@ class TradingAgentsAdapter:
 
     async def evaluate(self, task: EvaluationTask) -> PluginResult:
         started = time.perf_counter()
-        gate = self._live_gate_message()
+        overrides = task.config_overrides.get(self.manifest.plugin_id, {})
+        gate = self._live_gate_message(overrides)
         if gate:
             return self._unavailable(task, gate, started)
 
         try:
             graph_cls, default_config = self._load_graph_types()
-            config = dict(default_config)
-            config.update(task.config_overrides.get(self.manifest.plugin_id, {}))
+            config = build_tradingagents_config(default_config, self.manifest.plugin_id, overrides)
             graph = graph_cls(debug=False, config=config)
             state, decision = graph.propagate(task.ticker, task.eval_date.isoformat())
             parsed = parse_decision(decision)
@@ -72,10 +72,10 @@ class TradingAgentsAdapter:
                 latency_ms=_elapsed_ms(started),
             )
 
-    def _live_gate_message(self) -> str | None:
+    def _live_gate_message(self, overrides: dict[str, Any] | None = None) -> str | None:
         if os.getenv("SEA_ENABLE_LIVE_TRADINGAGENTS", "").lower() not in {"1", "true", "yes"}:
             return "live TradingAgents calls are disabled; set SEA_ENABLE_LIVE_TRADINGAGENTS=true"
-        if not _has_llm_config():
+        if not _has_llm_config(self.manifest.plugin_id, overrides):
             return "missing LLM provider config; set an API key or local provider config"
         return None
 
@@ -123,6 +123,110 @@ def parse_decision(decision: Any) -> dict[str, Any]:
     confidence = _parse_confidence(text)
     summary = _summarize(text)
     return {"direction": direction, "confidence": confidence, "summary": summary}
+
+
+def build_tradingagents_config(
+    default_config: dict[str, Any],
+    plugin_id: str,
+    overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Merge upstream defaults, SEA env config, and request-level overrides.
+
+    SEA intentionally treats upstream TradingAgents config as opaque. Any key
+    accepted by TradingAgentsGraph can be passed through either JSON env config,
+    double-underscore env config, or EvaluationTask.config_overrides.
+    """
+
+    config = _deep_copy_mapping(default_config)
+    _deep_update(config, _env_config_for(plugin_id))
+    _deep_update(config, overrides or {})
+    return config
+
+
+def _env_config_for(plugin_id: str) -> dict[str, Any]:
+    config: dict[str, Any] = {}
+    prefixes = ["SEA_TRADINGAGENTS_ALL_CONFIG", _plugin_env_prefix(plugin_id)]
+
+    for prefix in prefixes:
+        _deep_update(config, _json_env_config(prefix))
+        _deep_update(config, _double_underscore_env_config(prefix))
+
+    return config
+
+
+def _plugin_env_prefix(plugin_id: str) -> str:
+    return f"SEA_{plugin_id.upper()}_CONFIG"
+
+
+def _json_env_config(prefix: str) -> dict[str, Any]:
+    raw = os.getenv(prefix) or os.getenv(f"{prefix}_JSON")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{prefix}_JSON must be valid JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{prefix}_JSON must decode to an object")
+    return parsed
+
+
+def _double_underscore_env_config(prefix: str) -> dict[str, Any]:
+    marker = f"{prefix}__"
+    config: dict[str, Any] = {}
+    for key, raw_value in os.environ.items():
+        if not key.startswith(marker):
+            continue
+        path = [_env_key_to_config_key(part) for part in key[len(marker) :].split("__") if part]
+        if not path:
+            continue
+        _set_nested(config, path, _parse_env_value(raw_value))
+    return config
+
+
+def _env_key_to_config_key(value: str) -> str:
+    return value.lower()
+
+
+def _parse_env_value(value: str) -> Any:
+    stripped = value.strip()
+    if stripped == "":
+        return ""
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return value
+
+
+def _set_nested(target: dict[str, Any], path: list[str], value: Any) -> None:
+    current = target
+    for key in path[:-1]:
+        next_value = current.get(key)
+        if not isinstance(next_value, dict):
+            next_value = {}
+            current[key] = next_value
+        current = next_value
+    current[path[-1]] = value
+
+
+def _deep_update(target: dict[str, Any], source: dict[str, Any]) -> None:
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _deep_update(target[key], value)
+        else:
+            target[key] = _deep_copy(value)
+
+
+def _deep_copy_mapping(value: dict[str, Any]) -> dict[str, Any]:
+    return {key: _deep_copy(item) for key, item in value.items()}
+
+
+def _deep_copy(value: Any) -> Any:
+    if isinstance(value, dict):
+        return _deep_copy_mapping(value)
+    if isinstance(value, list):
+        return [_deep_copy(item) for item in value]
+    return value
 
 
 def _decision_text(decision: Any) -> str:
@@ -175,7 +279,12 @@ def _jsonable(value: Any) -> Any:
         return str(value)
 
 
-def _has_llm_config() -> bool:
+def _has_llm_config(plugin_id: str, overrides: dict[str, Any] | None = None) -> bool:
+    merged_config = _env_config_for(plugin_id)
+    _deep_update(merged_config, overrides or {})
+    if _contains_llm_connection_hint(merged_config):
+        return True
+
     provider_keys = [
         "OPENAI_API_KEY",
         "DEEPSEEK_API_KEY",
@@ -187,6 +296,20 @@ def _has_llm_config() -> bool:
     return any(os.getenv(key) for key in provider_keys) or bool(os.getenv("OLLAMA_BASE_URL"))
 
 
+def _contains_llm_connection_hint(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    for key, item in value.items():
+        normalized = str(key).lower()
+        if item and (
+            normalized.endswith("api_key")
+            or normalized in {"api_key", "base_url", "backend_url", "api_base", "backend"}
+        ):
+            return True
+        if _contains_llm_connection_hint(item):
+            return True
+    return False
+
+
 def _elapsed_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
-

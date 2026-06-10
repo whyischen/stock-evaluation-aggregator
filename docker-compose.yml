@@ -22,7 +22,10 @@ services:
   tradingagents-cn-svc:
     build:
       context: .
-      dockerfile: Dockerfile.plugin
+      dockerfile: Dockerfile.tradingagents-cn
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim}
+        TRADINGAGENTS_CN_REF: ${TRADINGAGENTS_CN_REF:-main}
     image: sea-plugin-tradingagents-cn:local
     command: ["uvicorn", "plugins.service:app", "--host", "0.0.0.0", "--port", "8080"]
     env_file:
@@ -39,18 +42,43 @@ services:
       SEA_TRADINGAGENTS_CN_CONFIG__DEEP_API_KEY: ${SEA_TRADINGAGENTS_CN_CONFIG__DEEP_API_KEY:-}
       SEA_TRADINGAGENTS_CN_CONFIG__QUICK_MODEL: ${SEA_TRADINGAGENTS_CN_CONFIG__QUICK_MODEL:-}
       SEA_TRADINGAGENTS_CN_CONFIG__DEEP_MODEL: ${SEA_TRADINGAGENTS_CN_CONFIG__DEEP_MODEL:-}
+      DEFAULT_CHINA_DATA_SOURCE: ${DEFAULT_CHINA_DATA_SOURCE:-akshare}
+      CHINA_STOCK_DATA_SOURCE: ${CHINA_STOCK_DATA_SOURCE:-akshare}
+      AKSHARE_TIMEOUT: ${AKSHARE_TIMEOUT:-30}
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
+      BAOSTOCK_CACHE_DIR: ${BAOSTOCK_CACHE_DIR:-/data/baostock}
+      MONGODB_HOST: ${MONGODB_HOST:-tradingagents-cn-mongodb}
+      MONGODB_PORT: ${MONGODB_PORT:-27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-tradingagents_cn}
+      MONGODB_USERNAME: ${MONGODB_USERNAME:-}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD:-}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://tradingagents-cn-mongodb:27017/tradingagents_cn}
+      REDIS_HOST: ${REDIS_HOST:-tradingagents-cn-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       QWEN_API_KEY: ${QWEN_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+    volumes:
+      - tradingagents_cn_data:/data
+    depends_on:
+      tradingagents-cn-mongodb:
+        condition: service_healthy
+      tradingagents-cn-redis:
+        condition: service_healthy
 
   tradingagents-svc:
     build:
       context: .
-      dockerfile: Dockerfile.plugin
+      dockerfile: Dockerfile.tradingagents
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim}
     image: sea-plugin-tradingagents:local
     command: ["uvicorn", "plugins.service:app", "--host", "0.0.0.0", "--port", "8080"]
     env_file:
@@ -66,6 +94,7 @@ services:
       SEA_TRADINGAGENTS_CONFIG__DEEP_THINK_LLM: ${SEA_TRADINGAGENTS_CONFIG__DEEP_THINK_LLM:-}
       SEA_TRADINGAGENTS_CONFIG__QUICK_THINK_LLM: ${SEA_TRADINGAGENTS_CONFIG__QUICK_THINK_LLM:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       QWEN_API_KEY: ${QWEN_API_KEY:-}
@@ -73,5 +102,31 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
 
+  tradingagents-cn-mongodb:
+    image: docker.m.daocloud.io/library/mongo:7
+    restart: unless-stopped
+    volumes:
+      - tradingagents_cn_mongodb:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  tradingagents-cn-redis:
+    image: docker.m.daocloud.io/library/redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - tradingagents_cn_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   sea_data:
+  tradingagents_cn_data:
+  tradingagents_cn_mongodb:
+  tradingagents_cn_redis:

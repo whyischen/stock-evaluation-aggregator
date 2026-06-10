@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import os
 import re
@@ -27,7 +28,8 @@ class TradingAgentsAdapter:
             return self._health("unavailable", gate)
 
         try:
-            self._load_graph_types()
+            _, config_cls = self._load_graph_types()
+            self._create_config(config_cls, {})
         except Exception as exc:
             return self._health("unavailable", f"dependency unavailable: {exc}")
 
@@ -41,8 +43,8 @@ class TradingAgentsAdapter:
             return self._unavailable(task, gate, started)
 
         try:
-            graph_cls, default_config = self._load_graph_types()
-            config = build_tradingagents_config(default_config, self.manifest.plugin_id, overrides)
+            graph_cls, config_cls = self._load_graph_types()
+            config = self._create_config(config_cls, overrides)
             graph = graph_cls(debug=False, config=config)
             state, decision = graph.propagate(task.ticker, task.eval_date.isoformat())
             parsed = parse_decision(decision)
@@ -81,10 +83,14 @@ class TradingAgentsAdapter:
 
     def _load_graph_types(self):
         graph_module = importlib.import_module("tradingagents.graph.trading_graph")
-        config_module = importlib.import_module("tradingagents.default_config")
+        config_module = importlib.import_module("tradingagents.config")
         graph_cls = getattr(graph_module, "TradingAgentsGraph")
-        default_config = getattr(config_module, "DEFAULT_CONFIG", {})
-        return graph_cls, default_config.copy() if hasattr(default_config, "copy") else {}
+        config_cls = getattr(config_module, "TradingAgentsConfig")
+        return graph_cls, config_cls
+
+    def _create_config(self, config_cls: type, overrides: dict[str, Any] | None = None) -> Any:
+        config_values = build_tradingagents_config({}, self.manifest.plugin_id, overrides)
+        return config_cls(**_filter_config_values(config_cls, config_values))
 
     def _health(self, status: str, message: str) -> PluginHealth:
         return PluginHealth(
@@ -141,6 +147,40 @@ def build_tradingagents_config(
     _deep_update(config, _env_config_for(plugin_id))
     _deep_update(config, overrides or {})
     return config
+
+
+def _filter_config_values(config_cls: type, config: dict[str, Any]) -> dict[str, Any]:
+    fields = _config_fields(config_cls)
+    if fields is None:
+        return config
+    return {key: value for key, value in config.items() if key in fields}
+
+
+def _config_fields(config_cls: type) -> set[str] | None:
+    model_fields = getattr(config_cls, "model_fields", None)
+    if isinstance(model_fields, dict):
+        return set(model_fields)
+
+    dataclass_fields = getattr(config_cls, "__dataclass_fields__", None)
+    if isinstance(dataclass_fields, dict):
+        return set(dataclass_fields)
+
+    annotations = getattr(config_cls, "__annotations__", None)
+    if isinstance(annotations, dict) and annotations:
+        return set(annotations)
+
+    try:
+        signature = inspect.signature(config_cls)
+    except (TypeError, ValueError):
+        return None
+
+    fields = {
+        name
+        for name, parameter in signature.parameters.items()
+        if name != "self"
+        and parameter.kind in {parameter.POSITIONAL_OR_KEYWORD, parameter.KEYWORD_ONLY}
+    }
+    return fields or None
 
 
 def _env_config_for(plugin_id: str) -> dict[str, Any]:

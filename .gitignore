@@ -55,9 +55,14 @@ htmlcov/
 # Logs
 *.log
 
-# Environment variables
+# Environment variables (may contain API keys)
 .env
-.env.local
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+credentials/
 
 # Temporary files
 *.tmp

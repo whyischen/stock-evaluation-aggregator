@@ -77,8 +77,23 @@ def test_build_tradingagents_config_supports_plugin_json_env(monkeypatch):
 async def test_adapter_passes_llm_config_to_tradingagents_graph(monkeypatch):
     captured: dict[str, object] = {}
 
+    class FakeConfig:
+        llm_provider: str
+        deep_think_llm: str
+        quick_think_llm: str
+
+        def __init__(
+            self,
+            llm_provider: str = "default-provider",
+            deep_think_llm: str = "default-deep",
+            quick_think_llm: str = "default-quick",
+        ):
+            self.llm_provider = llm_provider
+            self.deep_think_llm = deep_think_llm
+            self.quick_think_llm = quick_think_llm
+
     class FakeGraph:
-        def __init__(self, debug: bool, config: dict):
+        def __init__(self, debug: bool, config: FakeConfig):
             captured["debug"] = debug
             captured["config"] = config
 
@@ -88,12 +103,7 @@ async def test_adapter_passes_llm_config_to_tradingagents_graph(monkeypatch):
             return {"ok": True}, {"decision": "BUY with 80% confidence"}
 
     def fake_load_graph_types(self):
-        return FakeGraph, {
-            "llm_provider": "default-provider",
-            "backend_url": "https://default.example/v1",
-            "deep_think_llm": "default-deep",
-            "quick_think_llm": "default-quick",
-        }
+        return FakeGraph, FakeConfig
 
     monkeypatch.setenv("SEA_ENABLE_LIVE_TRADINGAGENTS", "true")
     monkeypatch.setenv("SEA_TRADINGAGENTS_CONFIG__LLM_PROVIDER", "openai")
@@ -119,10 +129,10 @@ async def test_adapter_passes_llm_config_to_tradingagents_graph(monkeypatch):
     assert captured["debug"] is False
     assert captured["ticker"] == "AAPL"
     assert captured["eval_date"] == "2026-06-01"
-    assert captured["config"] == {
-        "llm_provider": "openai",
-        "backend_url": "https://api.openai.example/v1",
-        "deep_think_llm": "default-deep",
-        "quick_think_llm": "gpt-4.1-mini",
-        "api_key": "task-key",
-    }
+    config = captured["config"]
+    assert isinstance(config, FakeConfig)
+    assert config.llm_provider == "openai"
+    assert config.deep_think_llm == "default-deep"
+    assert config.quick_think_llm == "gpt-4.1-mini"
+    assert not hasattr(config, "backend_url")
+    assert not hasattr(config, "api_key")

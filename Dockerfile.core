@@ -11,7 +11,7 @@ COPY sea_api ./sea_api
 COPY plugins ./plugins
 COPY web ./web
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple .
 
 EXPOSE 8000
 
